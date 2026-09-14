@@ -23,7 +23,7 @@
 
 Repository ini menggunakan struktur **Monorepo** yang memuat:
 - **`pf-backend/`** : RESTful API dibangun dengan **Laravel 11**, otentikasi Sanctum, integrasi payment gateway Xendit, dan sinkronisasi realtime.
-- **`pf-frontend/`** : Single Page Application dibangun dengan **Vue 3 (Composition API)**, **Pinia**, **Vite**, dan **Tailwind CSS** dengan *DashStack Design System*.
+- **`pf-frontend/`** : Single Page Application dibangun dengan **Vue 3 (Composition API)**, **Pinia**, **Vite**, dan **Tailwind CSS**.
 
 ---
 

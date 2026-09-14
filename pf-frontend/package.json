@@ -1,0 +1,40 @@
+{
+  "name": "pf-frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview",
+    "dev:all": "concurrently \"pnpm run dev\" \"composer --working-dir=../pf-backend run dev\" \"ngrok http 5173 --host-header='localhost:5173'\""
+  },
+  "dependencies": {
+    "@lucide/vue": "^1.37.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/qrcode": "^1.5.6",
+    "axios": "^1.20.0",
+    "chart.js": "^4.5.1",
+    "clsx": "^2.1.1",
+    "laravel-echo": "^2.4.0",
+    "lucide-vue-next": "^1.0.0",
+    "motion-v": "^2.4.0",
+    "pinia": "^4.0.3",
+    "pusher-js": "^8.6.0",
+    "qrcode": "^1.5.4",
+    "tailwind-merge": "^3.6.0",
+    "tailwindcss": "^4.3.3",
+    "vue": "^3.5.41",
+    "vue-chartjs": "^5.3.4",
+    "vue-router": "^5.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "@vitejs/plugin-vue": "^6.0.8",
+    "@vue/tsconfig": "^0.9.1",
+    "concurrently": "^10.0.5",
+    "typescript": "~6.0.2",
+    "vite": "^8.2.2",
+    "vue-tsc": "^3.3.11"
+  }
+}

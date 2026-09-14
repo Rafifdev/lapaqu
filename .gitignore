@@ -1,0 +1,63 @@
+# ==============================================================================
+# Lapaqu Monorepo Root .gitignore
+# ==============================================================================
+
+# OS & System files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+[Dd]esktop.ini
+
+# Editors & IDEs
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Environment & Sensitive Files
+.env
+.env.*
+!.env.example
+!.env.*.example
+auth.json
+
+# Backend (Laravel) specific ignores
+/pf-backend/vendor/
+/pf-backend/node_modules/
+/pf-backend/public/storage
+/pf-backend/public/hot
+/pf-backend/public/build
+/pf-backend/storage/*.key
+/pf-backend/storage/app/public/
+/pf-backend/storage/framework/cache/data/*
+/pf-backend/storage/framework/sessions/*
+/pf-backend/storage/framework/views/*
+/pf-backend/storage/logs/*
+!/pf-backend/storage/logs/.gitignore
+/pf-backend/.phpunit.result.cache
+
+# Frontend (Vue / Vite) specific ignores
+/pf-frontend/node_modules/
+/pf-frontend/dist/
+/pf-frontend/dist-ssr/
+/pf-frontend/*.local
+
+# Logs & Debugging
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# AI Agent Scratchpads & Temporary Artifacts
+.agents/
+scratch/

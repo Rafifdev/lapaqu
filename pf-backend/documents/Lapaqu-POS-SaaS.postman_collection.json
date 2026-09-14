@@ -1,0 +1,765 @@
+{
+  "info": {
+    "name": "Lapaqu POS SaaS API v1",
+    "_postman_id": "lapaqu-pos-saas-v1",
+    "description": "Collection API lengkap Backend Lapaqu POS SaaS v1 untuk pengujian Postman per Fase (Fase 1 s/d Fase 6).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000/api",
+      "type": "string"
+    },
+    {
+      "key": "owner_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "kasir_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "kitchen_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "demo_table_token",
+      "value": "qr_senopati_01",
+      "type": "string"
+    },
+    {
+      "key": "order_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "payment_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refund_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Fase 1: Autentikasi & Akun",
+      "item": [
+        {
+          "name": "1. Login Owner (Kopi Senopati)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.token) {",
+                  "    pm.collectionVariables.set('owner_token', jsonData.token);",
+                  "    console.log('Owner token saved:', jsonData.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"owner@kopisenopati.id\",\n  \"password\": \"RahasiaKopi123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Login Kasir",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.token) {",
+                  "    pm.collectionVariables.set('kasir_token', jsonData.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"kasir@kopisenopati.id\",\n  \"password\": \"RahasiaKopi123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Login Kitchen Staff",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.token) {",
+                  "    pm.collectionVariables.set('kitchen_token', jsonData.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"kitchen@kopisenopati.id\",\n  \"password\": \"RahasiaKopi123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. Get Profile (Me)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{owner_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Fase 2: Onboarding & Platform Billing",
+      "item": [
+        {
+          "name": "1. Check Subdomain Availability",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subdomain\": \"resto-baru-keren\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tenant/check-subdomain",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tenant",
+                "check-subdomain"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Register Tenant Mandiri (Self-Service)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"restaurant_name\": \"Resto Baru Keren\",\n  \"subdomain\": \"resto-baru-keren\",\n  \"owner_name\": \"Andi Pratama\",\n  \"owner_email\": \"andi@restobaru.test\",\n  \"owner_password\": \"PasswordKuat123!\",\n  \"phone\": \"081234567890\",\n  \"plan_code\": \"basic\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/onboarding/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "onboarding",
+                "register"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Get Tenant Subscription Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{owner_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/billing/subscription",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "billing",
+                "subscription"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. List Billing Invoices",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{owner_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/billing/invoices",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "billing",
+                "invoices"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Fase 3: Operasional (Menu, Meja & Staff)",
+      "item": [
+        {
+          "name": "1. List Kategori Menu",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{owner_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/menu-categories",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "menu-categories"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. List Item Menu & Varian",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{owner_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/menu-items",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "menu-items"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. List Meja Outlet",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{owner_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/tables",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "tables"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. List Staff Toko (Owner Only)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{owner_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/staff",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "staff"
+              ]
+            }
+          }
+        },
+        {
+          "name": "5. View Rekening Pembayaran Toko",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{owner_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/payment-account",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "payment-account"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Fase 4: Transaksi & Realtime",
+      "item": [
+        {
+          "name": "1. Public Resolve Meja & Menu (Customer Scan QR)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/public/tables/{{demo_table_token}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "public",
+                "tables",
+                "{{demo_table_token}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Customer Buat Pesanan (Self-Order Checkout)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.order && jsonData.order.id) {",
+                  "    pm.collectionVariables.set('order_id', jsonData.order.id);",
+                  "    console.log('Saved order_id:', jsonData.order.id);",
+                  "}",
+                  "if (jsonData.payment && jsonData.payment.id) {",
+                  "    pm.collectionVariables.set('payment_id', jsonData.payment.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"table_token\": \"qr_senopati_01\",\n  \"customer_name\": \"Dimas Postman\",\n  \"customer_phone\": \"081234567890\",\n  \"notes\": \"Jangan pakai sedotan plastik\",\n  \"items\": [\n    {\n      \"menu_item_id\": \"REPLACE_WITH_MENU_ITEM_ID\",\n      \"quantity\": 2,\n      \"notes\": \"Less sugar\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/public/orders",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "public",
+                "orders"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Customer Polling Status Pesanan",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/public/orders/{{order_id}}/status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "public",
+                "orders",
+                "{{order_id}}",
+                "status"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. Kasir List Pesanan Hari Ini",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{kasir_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/pos/orders",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "pos",
+                "orders"
+              ]
+            }
+          }
+        },
+        {
+          "name": "5. Kasir Bayar Tunai (Pay Cash)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{kasir_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cash_received\": 100000\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/pos/orders/{{order_id}}/pay-cash",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "pos",
+                "orders",
+                "{{order_id}}",
+                "pay-cash"
+              ]
+            }
+          }
+        },
+        {
+          "name": "6. KDS Dapur Antrean Masak",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{kitchen_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/kds/orders",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "kds",
+                "orders"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Fase 5: Penyempurnaan & Analytics",
+      "item": [
+        {
+          "name": "1. Kasir Ajukan Refund Pesanan",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.refund_request && jsonData.refund_request.id) {",
+                  "    pm.collectionVariables.set('refund_id', jsonData.refund_request.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{kasir_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Pelanggan minta ganti pesanan\",\n  \"amount\": 36000\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/orders/{{order_id}}/refund",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orders",
+                "{{order_id}}",
+                "refund"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Owner Setujui Refund (Approve)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{owner_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/refunds/{{refund_id}}/approve",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "refunds",
+                "{{refund_id}}",
+                "approve"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Laporan Ringkasan Penjualan (Sales Summary)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{owner_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/reports/sales-summary",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "reports",
+                "sales-summary"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. Laporan Top 10 Menu Terlaris",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{owner_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/reports/top-items",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "reports",
+                "top-items"
+              ]
+            }
+          }
+        },
+        {
+          "name": "5. List Notifikasi In-App",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{owner_token}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/notifications",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "notifications"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

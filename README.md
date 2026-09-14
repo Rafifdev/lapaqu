@@ -1,8 +1,8 @@
-# 🍽️ Lapaqu — All-in-One Restaurant Platform
+# Lapaqu - All-in-One Restaurant Platform
 
 <div align="center">
 
-![Lapaqu Logo](https://raw.githubusercontent.com/yoapipp/lapaqu/main/pf-frontend/src/assets/logo/lapaqu-logo.png)
+<img height="150" alt="lapaqu-logo" src="https://github.com/user-attachments/assets/1002b380-2731-4feb-bfbd-ba42d9cc81d5" />
 
 **Sistem Manajemen Restoran, POS Kasir, Kitchen Display System (KDS), dan Self-Order QR Terintegrasi**
 
@@ -192,7 +192,3 @@ pnpm run dev
 | **Pelanggan** | *(Tanpa Login)* | - | `/order/outlet-001/M01` |
 
 ---
-
-## 📄 Lisensi
-
-Proyek ini dikembangkan di bawah lisensi [MIT](LICENSE).

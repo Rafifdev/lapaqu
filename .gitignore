@@ -61,8 +61,22 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# AI Agent Scratchpads & Temporary Artifacts
+# AI Agents, Tools, and Skills Configuration
 .agents/
+**/.agents/
 .claude/
 **/.claude/
+skills/
+**/skills/
+skills-lock.json
+**/skills-lock.json
+[Aa][Gg][Ee][Nn][Tt][Ss].md
+[Aa][Gg][Ee][Nn][Tt].md
+[Gg][Ee][Mm][Ii][Nn][Ii].md
+**/*[Aa][Gg][Ee][Nn][Tt][Ss].md
+**/*[Aa][Gg][Ee][Nn][Tt].md
+**/*[Gg][Ee][Mm][Ii][Nn][Ii].md
+.system_generated/
+**/.system_generated/
 scratch/
+**/scratch/

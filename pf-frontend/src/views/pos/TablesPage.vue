@@ -269,7 +269,7 @@ const handleStartOrder = (t: TableItemModel) => {
 
           <!-- Legend & Button -->
           <div
-            class="flex items-center gap-4 sm:gap-6 flex-wrap text-xs font-extrabold text-[#334155] dark:text-[#CBD5E1]">
+            class="flex items-center gap-4 sm:gap-6 flex-wrap text-sm font-extrabold text-[#334155] dark:text-[#CBD5E1]">
             <div class="flex items-center gap-2">
               <div class="w-3.5 h-3.5 rounded-full bg-[#E2E8F0] dark:bg-[#334155] shadow-xs" />
               <span>Available</span>
@@ -300,11 +300,11 @@ const handleStartOrder = (t: TableItemModel) => {
               <img :src="emptyTableIllustration" alt="Belum Ada Meja"
                 class="w-48 h-48 sm:w-56 sm:h-56 md:w-60 md:h-60 lg:w-64 lg:h-64 object-contain drop-shadow-xs" />
             </div>
-            <h3 class="text-xl sm:text-2xl md:text-[26px] font-black text-[#1E293B] dark:text-white tracking-tight">
+            <h3 class="text-xl sm:text-2xl md:text-3xl font-black text-[#1E293B] dark:text-white tracking-tight">
               Whoops! :(
             </h3>
             <p
-              class="text-xs sm:text-base font-medium text-[#64748B] dark:text-[#94A3B8] mt-1.5 max-w-[280px] sm:max-w-xs md:max-w-sm leading-relaxed">
+              class="text-sm sm:text-base font-medium text-[#64748B] dark:text-[#94A3B8] mt-1.5 max-w-[280px] sm:max-w-xs md:max-w-sm leading-relaxed">
               Belum ada meja yang terdaftar saat ini
             </p>
           </div>
@@ -315,7 +315,7 @@ const handleStartOrder = (t: TableItemModel) => {
             <div>
               <div class="text-center mb-5">
                 <span
-                  class="inline-block text-xs font-black uppercase tracking-widest text-[#475569] dark:text-[#94A3B8]">
+                  class="inline-block text-sm font-black uppercase tracking-widest text-[#475569] dark:text-[#94A3B8]">
                   Indoor
                 </span>
               </div>
@@ -334,7 +334,7 @@ const handleStartOrder = (t: TableItemModel) => {
             <div v-if="outdoorTables.length > 0">
               <div class="text-center mb-5">
                 <span
-                  class="inline-block text-xs font-black uppercase tracking-widest text-[#475569] dark:text-[#94A3B8]">
+                  class="inline-block text-sm font-black uppercase tracking-widest text-[#475569] dark:text-[#94A3B8]">
                   outdoor
                 </span>
               </div>
@@ -390,7 +390,7 @@ const handleStartOrder = (t: TableItemModel) => {
                 <div class="flex items-center gap-2">
                   <span class="font-extrabold text-sm text-[#1E293B] dark:text-white">Available</span>
                   <span
-                    class="px-2 py-0.5 rounded-full text-xs font-black bg-[#E2E8F0] dark:bg-[#334155] text-[#1E293B] dark:text-white">
+                    class="px-2 py-0.5 rounded-full text-sm font-black bg-[#E2E8F0] dark:bg-[#334155] text-[#1E293B] dark:text-white">
                     {{ availableTables.length }}
                   </span>
                 </div>
@@ -415,7 +415,7 @@ const handleStartOrder = (t: TableItemModel) => {
                             {{ t.code }}
                           </h4>
                           <div
-                            class="flex items-center gap-1.5 text-xs text-[#64748B] dark:text-[#94A3B8] mt-0.5 font-medium">
+                            class="flex items-center gap-1.5 text-sm text-[#64748B] dark:text-[#94A3B8] mt-0.5 font-medium">
                             <AppIcon name="group" :size="14" class="shrink-0" />
                             <span>{{ t.capacity || 4 }} Kursi</span>
                             <span>•</span>
@@ -426,7 +426,7 @@ const handleStartOrder = (t: TableItemModel) => {
                         <!-- Right: Status Pill -->
                         <div class="shrink-0">
                           <span
-                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500 text-white shadow-2xs whitespace-nowrap">
+                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-500 text-white shadow-2xs whitespace-nowrap">
                             <AppIcon name="check_circle" :size="10" />
                             Siap Digunakan
                           </span>
@@ -436,7 +436,7 @@ const handleStartOrder = (t: TableItemModel) => {
 
                     <button v-if="availableTables.length > 4" type="button"
                       @click="isAvailableExpanded = !isAvailableExpanded"
-                      class="w-full py-2 text-xs font-bold text-[#64748B] dark:text-[#94A3B8] hover:text-[#4880FF] flex items-center justify-center gap-1.5 transition-colors cursor-pointer active:scale-95">
+                      class="w-full py-2 text-sm font-bold text-[#64748B] dark:text-[#94A3B8] hover:text-[#4880FF] flex items-center justify-center gap-1.5 transition-colors cursor-pointer active:scale-95">
                       <span>{{ isAvailableExpanded ? 'See Less' : 'See More' }}</span>
                       <AppIcon name="expand_more" :size="16"
                         :class="['transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]', isAvailableExpanded ? 'rotate-180' : 'rotate-0']" />
@@ -453,7 +453,7 @@ const handleStartOrder = (t: TableItemModel) => {
                 @click="isReservedOpen = !isReservedOpen">
                 <div class="flex items-center gap-2">
                   <span class="font-extrabold text-sm text-[#1E293B] dark:text-white">Reserved</span>
-                  <span class="px-2.5 py-0.5 rounded-full text-xs font-black bg-[#4880FF] text-white shadow-2xs">
+                  <span class="px-2.5 py-0.5 rounded-full text-sm font-black bg-[#4880FF] text-white shadow-2xs">
                     {{ reservedTables.length }}
                   </span>
                 </div>
@@ -478,7 +478,7 @@ const handleStartOrder = (t: TableItemModel) => {
                             {{ t.customerName || 'Tamu Reservasi' }}
                           </h4>
                           <div
-                            class="flex items-center gap-1.5 text-xs text-[#64748B] dark:text-[#94A3B8] mt-0.5 font-medium">
+                            class="flex items-center gap-1.5 text-sm text-[#64748B] dark:text-[#94A3B8] mt-0.5 font-medium">
                             <AppIcon name="group" :size="14" class="shrink-0" />
                             <span>{{ t.guestCount || t.capacity || 4 }} Orang</span>
                             <span>•</span>
@@ -490,7 +490,7 @@ const handleStartOrder = (t: TableItemModel) => {
                         <!-- Right: Status Pill -->
                         <div class="shrink-0">
                           <span
-                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#EF4444] text-white shadow-2xs whitespace-nowrap">
+                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-[#EF4444] text-white shadow-2xs whitespace-nowrap">
                             <AppIcon name="alarm" :size="10" />
                             {{ t.statusNote || 'In last 5 minutes' }}
                           </span>
@@ -500,7 +500,7 @@ const handleStartOrder = (t: TableItemModel) => {
 
                     <button v-if="reservedTables.length > 4" type="button"
                       @click="isReservedExpanded = !isReservedExpanded"
-                      class="w-full py-2 text-xs font-bold text-[#64748B] dark:text-[#94A3B8] hover:text-[#4880FF] flex items-center justify-center gap-1.5 transition-colors cursor-pointer active:scale-95">
+                      class="w-full py-2 text-sm font-bold text-[#64748B] dark:text-[#94A3B8] hover:text-[#4880FF] flex items-center justify-center gap-1.5 transition-colors cursor-pointer active:scale-95">
                       <span>{{ isReservedExpanded ? 'See Less' : 'See More' }}</span>
                       <AppIcon name="expand_more" :size="16"
                         :class="['transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]', isReservedExpanded ? 'rotate-180' : 'rotate-0']" />
@@ -518,7 +518,7 @@ const handleStartOrder = (t: TableItemModel) => {
                 <div class="flex items-center gap-2">
                   <span class="font-extrabold text-sm text-[#1E293B] dark:text-white">Filled</span>
                   <span
-                    class="px-2.5 py-0.5 rounded-full text-xs font-black bg-[#0F172A] text-white dark:bg-white dark:text-[#0F172A] shadow-2xs">
+                    class="px-2.5 py-0.5 rounded-full text-sm font-black bg-[#0F172A] text-white dark:bg-white dark:text-[#0F172A] shadow-2xs">
                     {{ filledTables.length }}
                   </span>
                 </div>
@@ -534,7 +534,7 @@ const handleStartOrder = (t: TableItemModel) => {
                 :class="isFilledOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0 pointer-events-none'">
                 <div class="overflow-hidden">
                   <div class="mt-3 space-y-3.5 pt-0.5">
-                    <div v-if="filledTables.length === 0" class="text-xs text-[#94A3B8] text-center py-2">
+                    <div v-if="filledTables.length === 0" class="text-sm text-[#94A3B8] text-center py-2">
                       Tidak ada meja yang sedang terisi
                     </div>
                     <div v-for="t in displayedFilled" :key="t.id"
@@ -546,7 +546,7 @@ const handleStartOrder = (t: TableItemModel) => {
                             {{ t.code }} • {{ t.customerName || 'Pelanggan Meja' }}
                           </h4>
                           <div
-                            class="flex items-center gap-1.5 text-xs text-[#64748B] dark:text-[#94A3B8] mt-0.5 font-medium">
+                            class="flex items-center gap-1.5 text-sm text-[#64748B] dark:text-[#94A3B8] mt-0.5 font-medium">
                             <AppIcon name="group" :size="14" class="shrink-0" />
                             <span>{{ t.capacity || 4 }} Kursi</span>
                             <span>•</span>
@@ -556,7 +556,7 @@ const handleStartOrder = (t: TableItemModel) => {
 
                         <div class="shrink-0">
                           <span
-                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#0F172A] text-white shadow-2xs whitespace-nowrap">
+                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-[#0F172A] text-white shadow-2xs whitespace-nowrap">
                             <AppIcon name="person" :size="10" />
                             Terisi
                           </span>
@@ -565,7 +565,7 @@ const handleStartOrder = (t: TableItemModel) => {
                     </div>
 
                     <button v-if="filledTables.length > 4" type="button" @click="isFilledExpanded = !isFilledExpanded"
-                      class="w-full py-2 text-xs font-bold text-[#64748B] dark:text-[#94A3B8] hover:text-[#4880FF] flex items-center justify-center gap-1.5 transition-colors cursor-pointer active:scale-95">
+                      class="w-full py-2 text-sm font-bold text-[#64748B] dark:text-[#94A3B8] hover:text-[#4880FF] flex items-center justify-center gap-1.5 transition-colors cursor-pointer active:scale-95">
                       <span>{{ isFilledExpanded ? 'See Less' : 'See More' }}</span>
                       <AppIcon name="expand_more" :size="16"
                         :class="['transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]', isFilledExpanded ? 'rotate-180' : 'rotate-0']" />
@@ -589,7 +589,7 @@ const handleStartOrder = (t: TableItemModel) => {
             <h3 class="font-bold text-base text-[#1E293B] dark:text-white leading-tight">
               {{ selectedTable.code }}
             </h3>
-            <div class="flex items-center gap-1.5 text-xs text-[#64748B] dark:text-[#94A3B8] mt-1 font-medium">
+            <div class="flex items-center gap-1.5 text-sm text-[#64748B] dark:text-[#94A3B8] mt-1 font-medium">
               <AppIcon name="group" :size="14" class="shrink-0" />
               <span>{{ selectedTable.capacity || 4 }} Kursi</span>
               <span>•</span>
@@ -607,33 +607,33 @@ const handleStartOrder = (t: TableItemModel) => {
         <!-- Detail Information Rows (Clean Left-Right Typography) -->
         <div class="space-y-3 pt-1">
           <template v-if="selectedTable.status === 'reserved'">
-            <div class="flex items-center justify-between text-xs sm:text-sm">
+            <div class="flex items-center justify-between text-sm">
               <span class="text-[#64748B] dark:text-[#94A3B8] font-medium">Nama Tamu:</span>
               <span class="font-bold text-[#1E293B] dark:text-white">{{ selectedTable.customerName || 'Tamu Reservasi'
               }}</span>
             </div>
-            <div class="flex items-center justify-between text-xs sm:text-sm">
+            <div class="flex items-center justify-between text-sm">
               <span class="text-[#64748B] dark:text-[#94A3B8] font-medium">Jam Reservasi:</span>
               <span class="font-bold text-[#4880FF] tabular-nums">{{ selectedTable.time }}</span>
             </div>
-            <div v-if="selectedTable.notes" class="flex items-center justify-between text-xs sm:text-sm">
+            <div v-if="selectedTable.notes" class="flex items-center justify-between text-sm">
               <span class="text-[#64748B] dark:text-[#94A3B8] font-medium">Catatan:</span>
               <span class="font-bold text-[#1E293B] dark:text-white">{{ selectedTable.notes }}</span>
             </div>
           </template>
 
           <template v-else-if="selectedTable.status === 'filled'">
-            <div class="flex items-center justify-between text-xs sm:text-sm">
+            <div class="flex items-center justify-between text-sm">
               <span class="text-[#64748B] dark:text-[#94A3B8] font-medium">Pelanggan:</span>
               <span class="font-bold text-[#1E293B] dark:text-white">{{ selectedTable.customerName || 'Pelanggan Meja'
               }}</span>
             </div>
-            <div class="flex items-center justify-between text-xs sm:text-sm">
+            <div class="flex items-center justify-between text-sm">
               <span class="text-[#64748B] dark:text-[#94A3B8] font-medium">Waktu Mulai:</span>
               <span class="font-bold text-[#1E293B] dark:text-white tabular-nums">{{ selectedTable.time }}</span>
             </div>
             <div
-              class="flex items-center justify-between text-xs sm:text-sm pt-2 border-t border-dashed border-[#F1F4F9] dark:border-[#313D4F]">
+              class="flex items-center justify-between text-sm pt-2 border-t border-dashed border-[#F1F4F9] dark:border-[#313D4F]">
               <span class="text-[#64748B] dark:text-[#94A3B8] font-medium">Tagihan Berjalan:</span>
               <span class="font-black text-base text-[#1E293B] dark:text-white tabular-nums">{{
                 formatCurrency(selectedTable.totalAmount || 0) }}</span>
@@ -641,11 +641,11 @@ const handleStartOrder = (t: TableItemModel) => {
           </template>
 
           <template v-else>
-            <div class="flex items-center justify-between text-xs sm:text-sm">
+            <div class="flex items-center justify-between text-sm">
               <span class="text-[#64748B] dark:text-[#94A3B8] font-medium">Status Meja:</span>
               <span class="font-bold text-[#00B69B]">Siap Digunakan</span>
             </div>
-            <div class="flex items-center justify-between text-xs sm:text-sm">
+            <div class="flex items-center justify-between text-sm">
               <span class="text-[#64748B] dark:text-[#94A3B8] font-medium">Area:</span>
               <span class="font-bold text-[#1E293B] dark:text-white uppercase">{{indoorTables.some(t => t.id ===
                 selectedTable?.id) ? 'Indoor' : 'Outdoor'}}</span>
@@ -710,7 +710,7 @@ const handleStartOrder = (t: TableItemModel) => {
                 <span v-else class="transition-transform duration-300">1</span>
               </div>
               <span :class="[
-                'text-xs font-semibold mt-1.5 transition-colors whitespace-nowrap',
+                'text-sm font-semibold mt-1.5 transition-colors whitespace-nowrap',
                 currentReservationStep >= 1 ? 'text-[#1E293B] dark:text-white' : 'text-[#94A3B8]'
               ]">
                 Pelanggan
@@ -738,7 +738,7 @@ const handleStartOrder = (t: TableItemModel) => {
                 <span v-else class="transition-transform duration-300">2</span>
               </div>
               <span :class="[
-                'text-xs font-semibold mt-1.5 transition-colors whitespace-nowrap',
+                'text-sm font-semibold mt-1.5 transition-colors whitespace-nowrap',
                 currentReservationStep >= 2 ? 'text-[#1E293B] dark:text-white' : 'text-[#94A3B8]'
               ]">
                 Reservasi
@@ -763,7 +763,7 @@ const handleStartOrder = (t: TableItemModel) => {
                 <span class="transition-transform duration-300">3</span>
               </div>
               <span :class="[
-                'text-xs font-semibold mt-1.5 transition-colors whitespace-nowrap',
+                'text-sm font-semibold mt-1.5 transition-colors whitespace-nowrap',
                 currentReservationStep === 3 ? 'text-[#1E293B] dark:text-white' : 'text-[#94A3B8]'
               ]">
                 Review
@@ -816,14 +816,14 @@ const handleStartOrder = (t: TableItemModel) => {
             <div class="grid grid-cols-2 gap-x-4 gap-y-2.5 mt-3">
               <!-- Left: Time Row -->
               <div
-                class="flex items-center gap-2 text-xs md:text-sm text-[#64748B] dark:text-[#94A3B8] font-medium min-w-0">
+                class="flex items-center gap-2 text-sm text-[#64748B] dark:text-[#94A3B8] font-medium min-w-0">
                 <AppIcon name="schedule" :size="16" class="text-[#94A3B8] dark:text-[#64748B] shrink-0" />
                 <span class="truncate">{{ reservationForm.reservationTime || '18:00' }} WIB</span>
               </div>
 
               <!-- Right: Table Row (with Parenthesis) -->
               <div
-                class="flex items-center gap-2 text-xs md:text-sm text-[#64748B] dark:text-[#94A3B8] font-medium min-w-0">
+                class="flex items-center gap-2 text-sm text-[#64748B] dark:text-[#94A3B8] font-medium min-w-0">
                 <AppIcon name="restaurant" :size="16" class="text-[#94A3B8] dark:text-[#64748B] shrink-0" />
                 <span class="truncate">{{ selectedReservationTable?.code || '-' }} ({{
                   selectedReservationTable?.isLarge ? '8 Kursi' : '4 Kursi' }})</span>
@@ -831,14 +831,14 @@ const handleStartOrder = (t: TableItemModel) => {
 
               <!-- Left: Phone Row -->
               <div
-                class="flex items-center gap-2 text-xs md:text-sm text-[#64748B] dark:text-[#94A3B8] font-medium min-w-0">
+                class="flex items-center gap-2 text-sm text-[#64748B] dark:text-[#94A3B8] font-medium min-w-0">
                 <AppIcon name="call" :size="16" class="text-[#94A3B8] dark:text-[#64748B] shrink-0" />
                 <span class="truncate">{{ reservationForm.customerPhone || '-' }}</span>
               </div>
 
               <!-- Right: Guest Count Row -->
               <div
-                class="flex items-center gap-2 text-xs md:text-sm text-[#64748B] dark:text-[#94A3B8] font-medium min-w-0">
+                class="flex items-center gap-2 text-sm text-[#64748B] dark:text-[#94A3B8] font-medium min-w-0">
                 <AppIcon name="group" :size="16" class="text-[#94A3B8] dark:text-[#64748B] shrink-0" />
                 <span class="truncate">{{ reservationForm.guestCount || 4 }} Orang</span>
               </div>
@@ -854,7 +854,7 @@ const handleStartOrder = (t: TableItemModel) => {
                   Catatan Khusus
                 </span>
               </div>
-              <p class="text-xs md:text-sm text-[#64748B] dark:text-[#CBD5E1] font-medium leading-relaxed">
+              <p class="text-sm text-[#64748B] dark:text-[#CBD5E1] font-medium leading-relaxed">
                 {{ reservationForm.notes || 'Tidak ada catatan tambahan' }}
               </p>
             </div>
@@ -938,7 +938,7 @@ const handleStartOrder = (t: TableItemModel) => {
           </div>
 
           <div v-if="lastReservationData.notes"
-            class="border-t border-dashed border-[#E2E8F0] dark:border-[#334155] mt-2.5 pt-2 text-[11px] text-[#64748B] dark:text-[#94A3B8]">
+            class="border-t border-dashed border-[#E2E8F0] dark:border-[#334155] mt-2.5 pt-2 text-xs text-[#64748B] dark:text-[#94A3B8]">
             <span class="font-bold">Catatan:</span> {{ lastReservationData.notes }}
           </div>
         </Motion>
@@ -967,7 +967,7 @@ const handleStartOrder = (t: TableItemModel) => {
             <AppIcon name="table_restaurant" :size="28" />
           </div>
           <div class="text-left">
-            <span class="text-xs font-bold opacity-90 block">Buka Status Meja</span>
+            <span class="text-sm font-bold opacity-90 block">Buka Status Meja</span>
             <span class="text-base font-bold tabular-nums">{{ availableTables.length }} Meja Kosong</span>
           </div>
           <div class="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center ml-1">

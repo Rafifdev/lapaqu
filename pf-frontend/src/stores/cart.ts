@@ -7,7 +7,23 @@ const STORAGE_KEY = 'lapaqu_pos_cart_state'
 function loadSavedState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return JSON.parse(raw)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed?.items)) {
+        parsed.items = parsed.items.map((it: any) => {
+          if (!it.menuItem) {
+            it.menuItem = {
+              id: it.id || it.menu_item_id || 'item',
+              name: it.name || it.item_name || 'Menu',
+              price: Number(it.price || it.unitPrice || 0),
+              imageUrl: it.imageUrl || it.image_url || '',
+            }
+          }
+          return it
+        })
+      }
+      return parsed
+    }
   } catch (e) {
     console.error('Failed to load cart state from localStorage', e)
   }
@@ -29,10 +45,30 @@ export interface PendingOrder {
 
 const PENDING_STORAGE_KEY = 'lapaqu_pending_order_state'
 
+export function isPendingOrderExpired(order: PendingOrder | null): boolean {
+  if (!order || !order.id) return true
+  if (order.expires_at) {
+    return new Date(order.expires_at).getTime() <= Date.now()
+  }
+  if (order.created_at) {
+    const isVA = order.payment_method?.startsWith('va_')
+    const maxAgeMs = isVA ? 24 * 60 * 60 * 1000 : 15 * 60 * 1000
+    return (Date.now() - new Date(order.created_at).getTime()) > maxAgeMs
+  }
+  return false
+}
+
 function loadSavedPendingOrder(): PendingOrder | null {
   try {
     const raw = localStorage.getItem(PENDING_STORAGE_KEY)
-    if (raw) return JSON.parse(raw)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (isPendingOrderExpired(parsed)) {
+        localStorage.removeItem(PENDING_STORAGE_KEY)
+        return null
+      }
+      return parsed
+    }
   } catch (e) {
     console.error('Failed to load pending order from localStorage', e)
   }
@@ -79,8 +115,30 @@ export const useCartStore = defineStore('cart', () => {
   const totalItemsCount = computed(() => items.value.reduce((acc, it) => acc + it.quantity, 0))
   const totalPrice = computed(() => items.value.reduce((acc, it) => acc + it.subtotal, 0))
 
+  const clearPendingOrder = () => {
+    pendingOrder.value = null
+    try {
+      localStorage.removeItem(PENDING_STORAGE_KEY)
+    } catch (e) {}
+  }
+
+  const hasPendingOrder = computed(() => {
+    if (!pendingOrder.value?.id) return false
+    if (isPendingOrderExpired(pendingOrder.value)) {
+      clearPendingOrder()
+      return false
+    }
+    return true
+  })
+
   const addItem = (menuItem: MenuItem, quantity = 1, selectedOptions: SelectedOption[] = [], notes = '') => {
-    if (hasPendingOrder.value) return
+    if (hasPendingOrder.value) {
+      if (isPendingOrderExpired(pendingOrder.value)) {
+        clearPendingOrder()
+      } else {
+        return
+      }
+    }
     const optionsPrice = selectedOptions.reduce((acc, opt) => acc + opt.priceModifier, 0)
     const unitPrice = menuItem.price + optionsPrice
     const optionsKey = selectedOptions.map(o => o.optionId).sort().join('-')
@@ -107,7 +165,13 @@ export const useCartStore = defineStore('cart', () => {
   }
 
   const updateQuantity = (cartItemId: string, delta: number) => {
-    if (hasPendingOrder.value) return
+    if (hasPendingOrder.value) {
+      if (isPendingOrderExpired(pendingOrder.value)) {
+        clearPendingOrder()
+      } else {
+        return
+      }
+    }
     const idx = items.value.findIndex(i => i.id === cartItemId)
     if (idx === -1) return
     const item = items.value[idx]
@@ -122,7 +186,13 @@ export const useCartStore = defineStore('cart', () => {
   }
 
   const removeItem = (cartItemId: string) => {
-    if (hasPendingOrder.value) return
+    if (hasPendingOrder.value) {
+      if (isPendingOrderExpired(pendingOrder.value)) {
+        clearPendingOrder()
+      } else {
+        return
+      }
+    }
     items.value = items.value.filter(i => i.id !== cartItemId)
   }
 
@@ -143,20 +213,11 @@ export const useCartStore = defineStore('cart', () => {
     } catch (e) {}
   }
 
-  const clearPendingOrder = () => {
-    pendingOrder.value = null
-    try {
-      localStorage.removeItem(PENDING_STORAGE_KEY)
-    } catch (e) {}
-  }
-
   const clearActiveOrderId = () => {
     try {
       localStorage.removeItem('lapaqu_active_order_id')
     } catch (e) {}
   }
-
-  const hasPendingOrder = computed(() => !!pendingOrder.value?.id)
 
   return {
     items,

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import AppDropdownMotion from '@/components/ui/AppDropdownMotion.vue'
@@ -7,6 +7,9 @@ import { useTheme } from '@/composables/useTheme'
 import { useAuthStore } from '@/stores/auth'
 import AppAvatar from '@/components/ui/AppAvatar.vue'
 import AppInput from '@/components/ui/AppInput.vue'
+import avatarManager from '@/assets/roles/avatar-manager.jpg'
+import avatarCashier from '@/assets/roles/avatar-cashier.jpg'
+import avatarKitchen from '@/assets/roles/avatar-kitchen.jpg'
 
 defineProps<{
   sidebarCollapsed?: boolean
@@ -15,6 +18,13 @@ defineProps<{
 const router = useRouter()
 const { isDark, toggleTheme } = useTheme()
 const authStore = useAuthStore()
+const userAvatar = computed(() => {
+  if (authStore.currentUser?.avatarUrl) return authStore.currentUser.avatarUrl
+  const role = authStore.currentUser?.role
+  if (role === 'kasir') return avatarCashier
+  if (role === 'kitchen_staff') return avatarKitchen
+  return avatarManager
+})
 
 const profileDropdownOpen = ref(false)
 const notificationDropdownOpen = ref(false)
@@ -65,12 +75,12 @@ const switchRole = async (role: 'owner' | 'kasir' | 'kitchen_staff') => {
         <!-- Notification Dropdown -->
         <AppDropdownMotion placement="bottom">
           <div v-if="notificationDropdownOpen"
-            class="absolute right-0 mt-2 w-80 bg-white dark:bg-[#273142] rounded-2xl shadow-2xl border border-[#E2E8F0] dark:border-[#334155] py-3 z-50 origin-top-right">
+            class="absolute right-0 mt-2 w-80 bg-white dark:bg-[#1E293B] rounded-2xl shadow-2xl border border-[#E2E8F0] dark:border-[#334155] py-3 z-50 origin-top-right">
             <div class="px-4 pb-2 border-b border-[#E2E8F0] dark:border-[#334155] flex items-center justify-between">
               <span class="text-sm font-bold text-[#1E293B] dark:text-white">Notifikasi</span>
               <span class="text-sm text-[#4880FF] font-semibold cursor-pointer">Tandai Baca</span>
             </div>
-            <div v-if="notifications.length === 0" class="p-6 text-center text-xs text-[#64748B] dark:text-[#94A3B8]">
+            <div v-if="notifications.length === 0" class="p-6 text-center text-sm text-[#64748B] dark:text-[#94A3B8]">
               Tidak ada notifikasi baru
             </div>
             <div v-else class="divide-y divide-[#E2E8F0] dark:divide-[#334155] max-h-64 overflow-y-auto">
@@ -88,7 +98,7 @@ const switchRole = async (role: 'owner' | 'kasir' | 'kitchen_staff') => {
       <div class="relative">
         <button @click="profileDropdownOpen = !profileDropdownOpen"
           class="flex items-center gap-3 p-1.5 rounded-xl hover:bg-[#F8FAFC] dark:hover:bg-[#334155] transition-colors cursor-pointer">
-          <AppAvatar :name="authStore.currentUser?.name || 'User'" :image-url="authStore.currentUser?.avatarUrl"
+          <AppAvatar :name="authStore.currentUser?.name || 'User'" :image-url="userAvatar"
             size="md" status="online" />
           <div class="hidden md:flex flex-col text-left">
             <span class="text-sm font-bold text-[#1E293B] dark:text-white leading-tight">
@@ -104,7 +114,7 @@ const switchRole = async (role: 'owner' | 'kasir' | 'kitchen_staff') => {
         <!-- Dropdown Menu -->
         <AppDropdownMotion placement="bottom">
           <div v-if="profileDropdownOpen"
-            class="absolute right-0 mt-2 w-64 bg-white dark:bg-[#273142] rounded-2xl shadow-2xl border border-[#E2E8F0] dark:border-[#334155] p-3 z-50 space-y-2 origin-top-right">
+            class="absolute right-0 mt-2 w-64 bg-white dark:bg-[#1E293B] rounded-2xl shadow-2xl border border-[#E2E8F0] dark:border-[#334155] p-3 z-50 space-y-2 origin-top-right">
             <div class="px-2 py-1.5 border-b border-[#E2E8F0] dark:border-[#334155]">
               <p class="text-xs text-[#64748B] dark:text-[#94A3B8] font-bold">Ganti Role (Preview):</p>
               <div class="grid grid-cols-3 gap-1 mt-2">

@@ -122,12 +122,12 @@ defineExpose({ open: () => (isOpen.value = true), close, toggle })
           class="w-full px-3 py-2 rounded-lg text-left flex items-center justify-between transition-colors cursor-pointer whitespace-nowrap"
           :class="
             localValue === opt.value
-              ? 'bg-[#4880FF]/10 text-[#4880FF] font-bold'
+              ? 'bg-blue-50 dark:bg-blue-950/40 text-[#4880FF] dark:text-[#93C5FD] font-bold'
               : 'text-[#202224] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#334155]'
           "
         >
           <span>{{ opt.label }}</span>
-          <Check v-if="localValue === opt.value" class="w-4 h-4 text-[#4880FF] shrink-0 ml-2" />
+          <Check v-if="localValue === opt.value" class="w-4 h-4 text-[#4880FF] dark:text-[#93C5FD] shrink-0 ml-2" />
         </button>
       </div>
     </Transition>

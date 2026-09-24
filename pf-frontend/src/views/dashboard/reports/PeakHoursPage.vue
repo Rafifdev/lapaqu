@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onActivated, watch } from 'vue'
 import { Download } from 'lucide-vue-next'
 import AppCard from '@/components/ui/AppCard.vue'
 import AppButton from '@/components/ui/AppButton.vue'
@@ -360,10 +360,19 @@ const getDensityBadgeVariant = (key: string): any => {
 onMounted(async () => {
   try {
     posStore.initRealtime()
-    await fetchHourlyData()
+    if (processedHourlyData.value.length > 0) {
+      isLoading.value = false
+      fetchHourlyData(false)
+    } else {
+      await fetchHourlyData(true)
+    }
   } catch (err) {
     console.error('Error loading peak hours data:', err)
   }
+})
+
+onActivated(async () => {
+  await fetchHourlyData(false)
 })
 
 // Export CSV handler

@@ -44,7 +44,7 @@ Route::middleware('throttle:10,1')->post('/onboarding/register', [OnboardingCont
 // Public Customer Ordering Endpoints (Rate Limit: 60/min table, 30/min order)
 
 // Live Dashboard Overview Route (Real database stats & dynamic chart for frontend)
-Route::get('/dashboard/overview', function (Request $request) {
+Route::middleware('redis.cache:300')->get('/dashboard/overview', function (Request $request) {
     $user = auth('sanctum')->user();
     $outlet = $user?->outlet ?? $user?->tenant?->outlets()->first() ?? \App\Models\Outlet::where('name', 'POS Self Order')->first() ?? \App\Models\Outlet::first();
     $period = $request->query('period', 'today'); // 'today', 'week', 'month'
@@ -368,9 +368,9 @@ Route::prefix('auth')->group(function () {
 
 // Tenant Protected Routes (Staff / Owner / Kasir / Kitchen)
 // Public Menu Browsing (Accessible by Customers & Guests without auth)
-Route::get('/menu-categories', [MenuCategoryController::class, 'index']);
-Route::get('/menu-items', [MenuItemController::class, 'index']);
-Route::get('/menu-items/{id}', [MenuItemController::class, 'show']);
+Route::middleware('redis.cache:300')->get('/menu-categories', [MenuCategoryController::class, 'index']);
+Route::middleware('redis.cache:300')->get('/menu-items', [MenuItemController::class, 'index']);
+Route::middleware('redis.cache:300')->get('/menu-items/{id}', [MenuItemController::class, 'show']);
 
 Route::middleware(['auth:sanctum', 'tenant.subscription'])->group(function () {
     // Menu Categories (Staff Mutations)
@@ -387,7 +387,7 @@ Route::middleware(['auth:sanctum', 'tenant.subscription'])->group(function () {
     Route::put('/menu-items/{id}/recipe', [MenuItemController::class, 'updateRecipe']);
 
     // Ingredients (Bahan Baku)
-    Route::get('/ingredients', [IngredientController::class, 'index']);
+    Route::middleware('redis.cache:300')->get('/ingredients', [IngredientController::class, 'index']);
     Route::post('/ingredients', [IngredientController::class, 'store']);
     Route::get('/ingredients/{id}', [IngredientController::class, 'show']);
     Route::put('/ingredients/{id}', [IngredientController::class, 'update']);
@@ -395,23 +395,23 @@ Route::middleware(['auth:sanctum', 'tenant.subscription'])->group(function () {
     Route::post('/ingredients/{id}/adjust-stock', [IngredientController::class, 'adjustStock']);
 
     // Ingredient Categories (Kategori Bahan Baku)
-    Route::get('/ingredient-categories', [IngredientCategoryController::class, 'index']);
+    Route::middleware('redis.cache:300')->get('/ingredient-categories', [IngredientCategoryController::class, 'index']);
     Route::post('/ingredient-categories', [IngredientCategoryController::class, 'store']);
     Route::get('/ingredient-categories/{id}', [IngredientCategoryController::class, 'show']);
     Route::put('/ingredient-categories/{id}', [IngredientCategoryController::class, 'update']);
     Route::delete('/ingredient-categories/{id}', [IngredientCategoryController::class, 'destroy']);
 
     // Stock Opname
-    Route::get('/stock-opnames', [StockOpnameController::class, 'index']);
+    Route::middleware('redis.cache:300')->get('/stock-opnames', [StockOpnameController::class, 'index']);
     Route::post('/stock-opnames', [StockOpnameController::class, 'store']);
     Route::get('/stock-opnames/{id}', [StockOpnameController::class, 'show']);
 
     // Stock Logs / History
-    Route::get('/stock-logs', [StockHistoryController::class, 'index']);
+    Route::middleware('redis.cache:300')->get('/stock-logs', [StockHistoryController::class, 'index']);
 
 
     // Tables & QR Code
-    Route::get('/tables', [TableController::class, 'index']);
+    Route::middleware('redis.cache:300')->get('/tables', [TableController::class, 'index']);
     Route::post('/tables', [TableController::class, 'store']);
     Route::put('/tables/{id}', [TableController::class, 'update']);
     Route::delete('/tables/{id}', [TableController::class, 'destroy']);
@@ -461,10 +461,11 @@ Route::middleware(['auth:sanctum', 'tenant.subscription'])->group(function () {
         Route::get('/payment-account/settlement-logs', [TenantPaymentAccountController::class, 'settlementLogs']);
 
         // Outlet Management (Owner Only)
-        Route::get('/outlets', [OutletController::class, 'index']);
+        Route::middleware('redis.cache:300')->get('/outlets', [OutletController::class, 'index']);
         Route::post('/outlets', [OutletController::class, 'store']);
         Route::put('/outlets/{id}', [OutletController::class, 'update']);
         Route::delete('/outlets/{id}', [OutletController::class, 'destroy']);
+        Route::post('/outlets/{id}/logo', [OutletController::class, 'uploadLogo']);
         Route::post('/outlets/{id}/pairing-code', [OutletController::class, 'generatePairingCode']);
         Route::get('/outlets/{id}/pairing-code', [OutletController::class, 'getActivePairingCode']);
         Route::get('/outlets/{id}/devices', [OutletController::class, 'getConnectedDevices']);
@@ -481,7 +482,7 @@ Route::middleware(['auth:sanctum', 'tenant.subscription'])->group(function () {
     });
 
     // Refund Approvals & Reports (Owner, Manager & Kasir)
-    Route::middleware('role:owner,store_manager,manager,kasir')->group(function () {
+    Route::middleware(['role:owner,store_manager,manager,kasir', 'redis.cache:300'])->group(function () {
         Route::post('/refunds/{id}/approve', [RefundRequestController::class, 'approve']);
         Route::post('/refunds/{id}/reject', [RefundRequestController::class, 'reject']);
 

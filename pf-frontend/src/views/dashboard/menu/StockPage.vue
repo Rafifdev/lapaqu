@@ -1145,7 +1145,7 @@ const handleImageError = (e: Event) => {
           </div>
 
           <div v-if="recipeRows.length === 0" class="p-6 rounded-xl border border-dashed border-[#CBD5E1] dark:border-[#334155] text-center">
-            <p class="text-xs text-[#94A3B8]">Belum ada bahan dalam resep ini. Klik "Tambah Bahan Resep" di atas.</p>
+            <p class="text-sm text-[#94A3B8]">Belum ada bahan dalam resep ini. Klik "Tambah Bahan Resep" di atas.</p>
           </div>
 
           <div

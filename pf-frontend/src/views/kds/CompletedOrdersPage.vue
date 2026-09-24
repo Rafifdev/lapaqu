@@ -11,10 +11,13 @@ const { t } = usePosKdsI18n()
 const posStore = usePosStore()
 const { formatTimeOnly, formatCustomerName } = useFormat()
 
+const currentDateStr = ref(new Date().toDateString())
+let midnightInterval: any = null
+
 const isToday = (dateStr?: string) => {
   if (!dateStr) return false
   const d = new Date(dateStr)
-  const now = new Date()
+  const now = new Date(currentDateStr.value)
   return (
     d.getDate() === now.getDate() &&
     d.getMonth() === now.getMonth() &&
@@ -61,11 +64,18 @@ onMounted(() => {
   }
   posStore.initRealtime()
   polling = setInterval(() => fetchCompletedOrders(true), 4000)
+  midnightInterval = setInterval(() => {
+    const today = new Date().toDateString()
+    if (today !== currentDateStr.value) {
+      currentDateStr.value = today
+    }
+  }, 10000)
   window.addEventListener('kds:refresh', handleKdsRefresh)
 })
 
 onUnmounted(() => {
   if (polling) clearInterval(polling)
+  if (midnightInterval) clearInterval(midnightInterval)
   window.removeEventListener('kds:refresh', handleKdsRefresh)
 })
 
@@ -129,10 +139,6 @@ const getStatusPillConfig = (status: string) => {
           {{ t('kds.completedTitle', 'Antrean Selesai') }}
         </h1>
       </div>
-      <span
-        class="text-xs font-semibold px-3 py-1 rounded-full bg-[#E2E8F0] dark:bg-[#334155] text-[#475569] dark:text-[#CBD5E1]">
-        Hari Ini: {{ completedOrders.length }} Pesanan
-      </span>
     </div>
 
     <!-- Scrollable Content Area: Strictly BELOW Header -->
@@ -195,7 +201,7 @@ const getStatusPillConfig = (status: string) => {
           Whoops! :(
         </h3>
         <p
-          class="text-xs sm:text-sm font-medium text-[#64748B] dark:text-[#94A3B8] mt-1.5 max-w-[280px] sm:max-w-xs md:max-w-sm leading-relaxed">
+          class="text-sm font-medium text-[#64748B] dark:text-[#94A3B8] mt-1.5 max-w-[280px] sm:max-w-xs md:max-w-sm leading-relaxed">
           Belum ada riwayat pesanan saat ini
         </p>
       </div>

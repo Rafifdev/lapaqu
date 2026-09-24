@@ -45,9 +45,18 @@ export const useAuthStore = defineStore('auth', () => {
     if (outlets && Array.isArray(outlets)) {
       availableOutlets.value = outlets
       localStorage.setItem('lapaqu_available_outlets', JSON.stringify(outlets))
-      if (outlets.length === 1) {
+      if (user?.outlet_id || user?.outletId) {
+        const uOutletId = user?.outlet_id || user?.outletId
+        const match = outlets.find((o: any) => o.id === uOutletId)
+        localStorage.setItem('lapaqu_outlet_id', uOutletId)
+        if (match?.name) localStorage.setItem('lapaqu_outlet_name', match.name)
+      } else if (outlets.length === 1) {
         localStorage.setItem('lapaqu_outlet_id', outlets[0].id)
         localStorage.setItem('lapaqu_outlet_name', outlets[0].name)
+      } else if (!localStorage.getItem('lapaqu_outlet_id') && outlets.length > 0) {
+        const mainOutlet = outlets.find((o: any) => o.is_main) || outlets[0]
+        localStorage.setItem('lapaqu_outlet_id', mainOutlet.id)
+        localStorage.setItem('lapaqu_outlet_name', mainOutlet.name)
       }
     }
     token.value = newToken
@@ -113,9 +122,18 @@ export const useAuthStore = defineStore('auth', () => {
         }
         if (data.outlets && Array.isArray(data.outlets)) {
           localStorage.setItem('lapaqu_available_outlets', JSON.stringify(data.outlets))
-          if (data.outlets.length === 1) {
+          if (data.user?.outlet_id || data.user?.outletId) {
+            const uOutletId = data.user?.outlet_id || data.user?.outletId
+            const match = data.outlets.find((o: any) => o.id === uOutletId)
+            localStorage.setItem('lapaqu_outlet_id', uOutletId)
+            if (match?.name) localStorage.setItem('lapaqu_outlet_name', match.name)
+          } else if (data.outlets.length === 1) {
             localStorage.setItem('lapaqu_outlet_id', data.outlets[0].id)
             localStorage.setItem('lapaqu_outlet_name', data.outlets[0].name)
+          } else if (!localStorage.getItem('lapaqu_outlet_id') && data.outlets.length > 0) {
+            const mainOutlet = data.outlets.find((o: any) => o.is_main) || data.outlets[0]
+            localStorage.setItem('lapaqu_outlet_id', mainOutlet.id)
+            localStorage.setItem('lapaqu_outlet_name', mainOutlet.name)
           }
         }
         setAuthData(data.token, data.user, data.outlets, rememberMe)

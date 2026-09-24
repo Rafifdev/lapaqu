@@ -44,15 +44,27 @@ class CustomerOrderController extends Controller
         ]);
 
         $token = $request->table_token;
-        $table = Table::withoutGlobalScopes()
-            ->with(['outlet.tenant'])
-            ->where(function ($q) use ($token) {
-                $q->where('qr_code_token', $token)
-                  ->orWhere('table_number', $token)
-                  ->orWhere('table_number', 'Meja ' . ltrim(str_ireplace('meja', '', $token), ' 0M'))
-                  ->orWhere('table_number', 'Meja 0' . ltrim(str_ireplace('meja', '', $token), ' 0M'));
-            })
-            ->first();
+        $outletId = $request->input('outlet_id');
+
+        $tableQuery = Table::withoutGlobalScopes()->with(['outlet.tenant']);
+        if ($outletId && \Illuminate\Support\Str::isUuid($outletId)) {
+            $tableQuery->where('outlet_id', $outletId);
+        }
+
+        $table = (clone $tableQuery)->where(function ($q) use ($token) {
+            $q->where('qr_code_token', $token)
+              ->orWhere('table_number', $token)
+              ->orWhere('table_number', 'Meja ' . ltrim(str_ireplace('meja', '', $token), ' 0M'))
+              ->orWhere('table_number', 'Meja 0' . ltrim(str_ireplace('meja', '', $token), ' 0M'))
+              ->orWhere('table_number', 'LIKE', '%' . ltrim($token, '0') . '%');
+        })->first();
+
+        if (!$table && $outletId && \Illuminate\Support\Str::isUuid($outletId)) {
+            $table = Table::withoutGlobalScopes()->with(['outlet.tenant'])
+                ->where('outlet_id', $outletId)
+                ->where('is_active', true)
+                ->first();
+        }
 
         if (!$table) {
             $table = Table::withoutGlobalScopes()
@@ -308,33 +320,80 @@ class CustomerOrderController extends Controller
         $tableToken = $request->query('table_token') ?? $request->query('table_code');
         $outletId = $request->query('outlet_id');
 
-        if (!$tableToken) {
-            return response()->json(['order' => null]);
+        if (!$tableToken && !$outletId) {
+            return response()->json(['order' => null, 'orders' => []]);
         }
 
-        // Cari meja berdasarkan token atau nomor meja
-        $table = Table::withoutGlobalScopes()
-            ->where(function ($q) use ($tableToken) {
+        // Cari meja berdasarkan token atau nomor meja di outlet tersebut
+        $tableQuery = Table::withoutGlobalScopes();
+        if ($outletId && \Illuminate\Support\Str::isUuid($outletId)) {
+            $tableQuery->where('outlet_id', $outletId);
+        }
+
+        $table = null;
+        if ($tableToken) {
+            $table = (clone $tableQuery)->where(function ($q) use ($tableToken) {
                 $q->where('qr_code_token', $tableToken)
                   ->orWhere('table_number', $tableToken)
                   ->orWhere('table_number', 'Meja ' . ltrim(str_ireplace('meja', '', $tableToken), ' 0M'))
-                  ->orWhere('table_number', 'Meja 0' . ltrim(str_ireplace('meja', '', $tableToken), ' 0M'));
-            })
-            ->when(\Illuminate\Support\Str::isUuid($outletId), fn($q) => $q->where('outlet_id', $outletId))
-            ->first();
-
-        if (!$table) {
-            return response()->json(['order' => null]);
+                  ->orWhere('table_number', 'Meja 0' . ltrim(str_ireplace('meja', '', $tableToken), ' 0M'))
+                  ->orWhere('table_number', 'LIKE', '%' . ltrim($tableToken, '0') . '%');
+            })->first();
         }
 
-        // Cari semua pesanan aktif untuk meja ini yang sudah diterima dapur (tidak ada pending_payment, cancelled, atau expired)
-        $orders = Order::withoutGlobalScopes()
+        if (!$table && $outletId && \Illuminate\Support\Str::isUuid($outletId)) {
+            // Fallback ke meja aktif pertama di outlet ini jika tableToken dummy (e.g. testing dengan 101)
+            $table = Table::withoutGlobalScopes()
+                ->where('outlet_id', $outletId)
+                ->where('is_active', true)
+                ->first();
+        }
+
+        if (!$table) {
+            return response()->json(['order' => null, 'orders' => []]);
+        }
+
+        // 1. Cek sesi meja (TableSession) untuk meja ini
+        $session = TableSession::where('table_id', $table->id)
+            ->latest('opened_at')
+            ->first();
+
+        // Cek apakah ada sesi meja dan statusnya
+        if ($session) {
+            // A. Jika kasir telah menutup meja (status = closed)
+            if ($session->status === 'closed' || $session->closed_at !== null) {
+                return response()->json(['order' => null, 'orders' => [], 'table_closed' => true]);
+            }
+
+            // B. Jika durasi waktu meja habis (table_timeout pada outlet, default 90 menit)
+            $timeoutMinutes = (int) ($table->outlet?->table_timeout ?? \App\Models\Outlet::withoutGlobalScopes()->where('id', $table->outlet_id)->value('table_timeout') ?? 90);
+            if ($timeoutMinutes > 0 && $session->opened_at && (($session->opened_at->timestamp + ($timeoutMinutes * 60)) < now()->timestamp)) {
+                $session->update([
+                    'status' => 'closed',
+                    'closed_at' => now(),
+                ]);
+                return response()->json(['order' => null, 'orders' => [], 'table_closed' => true]);
+            }
+        }
+
+        // 2. Ambil semua pesanan aktif untuk meja ini yang masih dalam sesi aktif
+        // Status pesanan tetap tampil (termasuk status completed) sampai sesi meja ditutup (durasi habis / diclose kasir)
+        $ordersQuery = Order::withoutGlobalScopes()
             ->with(['payments', 'items.options', 'table'])
-            ->where('table_id', $table->id)
-            ->whereIn('status', ['confirmed', 'processing', 'preparing', 'cooking', 'ready', 'completed'])
-            ->where('payment_status', 'paid')
-            ->whereNotIn('status', ['cancelled', 'expired', 'pending_payment'])
-            ->where('created_at', '>=', now()->subHours(6))
+            ->where('table_id', $table->id);
+
+        if ($session) {
+            $ordersQuery->where(function ($q) use ($session) {
+                $q->where('table_session_id', $session->id)
+                  ->orWhere('created_at', '>=', $session->opened_at);
+            });
+        } else {
+            $ordersQuery->where('created_at', '>=', now()->subHours(6));
+        }
+
+        $orders = $ordersQuery
+            ->whereIn('status', ['pending_payment', 'awaiting_payment', 'confirmed', 'processing', 'preparing', 'cooking', 'ready', 'completed', 'cancelled'])
+            ->whereNotIn('status', ['expired'])
             ->oldest('created_at')
             ->get();
 

@@ -5,6 +5,7 @@ namespace App\Traits;
 use App\Models\Outlet;
 use App\Models\Tenant;
 use App\Scopes\TenantScope;
+use App\Services\RedisCacheService;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 trait BelongsToTenant
@@ -25,6 +26,18 @@ trait BelongsToTenant
                         $model->tenant_id = $outlet->tenant_id;
                     }
                 }
+            }
+        });
+
+        static::saved(function ($model) {
+            if (!empty($model->tenant_id)) {
+                RedisCacheService::flushTenant($model->tenant_id);
+            }
+        });
+
+        static::deleted(function ($model) {
+            if (!empty($model->tenant_id)) {
+                RedisCacheService::flushTenant($model->tenant_id);
             }
         });
     }

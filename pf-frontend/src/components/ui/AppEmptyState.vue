@@ -74,7 +74,7 @@ const illustrationSrc = computed(() => {
     </h4>
 
     <!-- Description -->
-    <p v-if="description" class="text-xs text-[#64748B] dark:text-[#94A3B8] font-medium max-w-xs mt-1.5 mb-6 leading-relaxed">
+    <p v-if="description" class="text-sm text-[#64748B] dark:text-[#94A3B8] font-medium max-w-xs mt-1.5 mb-6 leading-relaxed">
       {{ description }}
     </p>
 
@@ -83,7 +83,7 @@ const illustrationSrc = computed(() => {
       v-if="actionLabel"
       type="button"
       @click="$emit('action')"
-      class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#4880FF] hover:bg-[#3971F0] text-white text-xs font-bold shadow-md shadow-[#4880FF]/25 transition-all active:scale-95 cursor-pointer"
+      class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#4880FF] hover:bg-[#3971F0] text-white text-sm font-bold shadow-md shadow-[#4880FF]/25 transition-all active:scale-95 cursor-pointer"
     >
       <AppIcon :name="actionIcon" :size="18" />
       <span>{{ actionLabel }}</span>

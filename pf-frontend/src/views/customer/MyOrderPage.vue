@@ -937,6 +937,7 @@ const handleConfirmPayment = async () => {
     const res = await apiClient.post(
       '/public/orders',
       {
+        outlet_id: outletId.value,
         table_token: resolvedTableToken,
         customer_name: cartStore.customerName.trim() || 'Pelanggan Umum',
         customer_phone: cartStore.customerPhone || null,
@@ -1283,7 +1284,7 @@ const handleConfirmPayment = async () => {
             <div class="w-24 flex items-center justify-between shrink-0">
               <button type="button" @click="cartStore.updateQuantity(item.id, -1)"
                 class="w-7.5 h-7.5 shrink-0 rounded-full bg-[#F1F4F9] dark:bg-[#323D4E] shadow-xs flex items-center justify-center text-[#202224] dark:text-white hover:bg-[#E2E8F0] dark:hover:bg-[#3B4758] transition-all cursor-pointer active:scale-90"
-                title="Kurangi">
+                >
                 <AppIcon name="remove" :size="15" />
               </button>
               <span

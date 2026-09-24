@@ -5,7 +5,7 @@ import AppIcon from '@/components/ui/AppIcon.vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 import { usePosStore } from '@/stores/pos'
-import { useCartStore } from '@/stores/cart'
+import { useCartStore, isPendingOrderExpired } from '@/stores/cart'
 import { useCustomerI18n } from '@/i18n'
 import { useFormat } from '@/composables/useFormat'
 import type { MenuItem, SelectedOption } from '@/types'
@@ -428,9 +428,13 @@ const modalSubtotal = computed(() => modalUnitPrice.value * modalQuantity.value)
 
 const handleAddToCartFromModal = () => {
   if (cartStore.hasPendingOrder) {
-    closeDetailModal()
-    router.push(`${myOrderUrl.value}?openQris=1`)
-    return
+    if (isPendingOrderExpired(cartStore.pendingOrder)) {
+      cartStore.clearPendingOrder()
+    } else {
+      closeDetailModal()
+      router.push(`${myOrderUrl.value}?openQris=1`)
+      return
+    }
   }
   if (!selectedItem.value) return
   cartStore.addItem(selectedItem.value, modalQuantity.value, computedModalOptions.value, '')
@@ -441,8 +445,12 @@ const handleQuickAdd = (event: Event, item: MenuItem) => {
   event.stopPropagation()
   if (!item.isAvailable) return
   if (cartStore.hasPendingOrder) {
-    router.push(`${myOrderUrl.value}?openQris=1`)
-    return
+    if (isPendingOrderExpired(cartStore.pendingOrder)) {
+      cartStore.clearPendingOrder()
+    } else {
+      router.push(`${myOrderUrl.value}?openQris=1`)
+      return
+    }
   }
   // If item has variants, open detail modal to select options
   if (item.variantGroups && item.variantGroups.length > 0) {
@@ -533,8 +541,7 @@ const handleQuickRemove = (event: Event, item: MenuItem) => {
                   <button
                     type="button"
                     @click.stop="handleQuickRemove($event, item)"
-                    class="w-7.5 h-7.5 rounded-lg border-2 border-[#4880FF] text-[#4880FF] bg-white dark:bg-[#273142] hover:bg-[#4880FF]/10 active:scale-90 flex items-center justify-center shadow-xs transition-all cursor-pointer shrink-0 z-10"
-                    title="Kurangi"
+                    class="w-7.5 h-7.5 rounded-lg border-2 border-[#4880FF] text-[#4880FF] bg-white dark:bg-[#273142] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] active:scale-90 flex items-center justify-center shadow-xs transition-all cursor-pointer shrink-0 z-10"
                   >
                     <AppIcon name="remove" :size="15" />
                   </button>
@@ -707,8 +714,7 @@ const handleQuickRemove = (event: Event, item: MenuItem) => {
                 <button
                   type="button"
                   @click.stop="handleQuickRemove($event, item)"
-                  class="w-9 h-9 rounded-xl border-2 border-[#4880FF] text-[#4880FF] bg-white dark:bg-[#273142] hover:bg-[#4880FF]/10 active:scale-90 flex items-center justify-center shadow-md transition-all cursor-pointer shrink-0 z-10"
-                  title="Kurangi"
+                  class="w-9 h-9 rounded-xl border-2 border-[#4880FF] text-[#4880FF] bg-white dark:bg-[#273142] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] active:scale-90 flex items-center justify-center shadow-md transition-all cursor-pointer shrink-0 z-10"
                 >
                   <AppIcon name="remove" :size="20" />
                 </button>
@@ -891,7 +897,6 @@ const handleQuickRemove = (event: Event, item: MenuItem) => {
                 type="button"
                 @click="modalQuantity = Math.max(1, modalQuantity - 1)"
                 class="w-7 h-7 rounded-full bg-[#F1F4F9] dark:bg-[#323D4E] shadow-xs flex items-center justify-center text-[#202224] dark:text-white hover:bg-[#E2E8F0] dark:hover:bg-[#3B4758] transition-all cursor-pointer active:scale-90"
-                title="Kurangi"
               >
                 <AppIcon name="remove" :size="15" />
               </button>

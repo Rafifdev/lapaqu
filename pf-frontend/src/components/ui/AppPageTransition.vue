@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Component as VueComponent } from 'vue'
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
+import { isReducedMotion } from '@/composables/useMotion'
 
 withDefaults(
   defineProps<{
@@ -17,7 +18,7 @@ withDefaults(
 </script>
 
 <template>
-  <Transition :name="name" :mode="mode">
+  <Transition :name="isReducedMotion ? '' : name" :mode="isReducedMotion ? undefined : mode">
     <component v-if="component" :is="component" :key="route?.fullPath || route?.path" />
     <slot v-else />
   </Transition>

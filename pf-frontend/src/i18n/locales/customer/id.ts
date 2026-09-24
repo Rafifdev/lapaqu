@@ -37,6 +37,16 @@ export default {
     viewCart: 'Lihat Keranjang',
     itemsCount: '{count} Menu',
   },
+  orderSummary: {
+    title: 'Daftar Pesanan',
+    addMoreItems: 'Tambah Menu Lain',
+    summaryTitle: 'Ringkasan Pembayaran',
+    subtotal: 'Subtotal Pesanan',
+    service: 'Biaya Layanan',
+    tax: 'Pajak Restoran (PB1)',
+    grandTotal: 'Total Pembayaran',
+    selectPayment: 'Pilih Metode Pembayaran',
+  },
   orderStatus: {
     title: 'Status Pesanan Meja',
     subtitle: 'Pantau proses pesanan makanan Anda langsung dari dapur.',

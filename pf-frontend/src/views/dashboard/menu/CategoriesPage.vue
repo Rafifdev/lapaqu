@@ -13,7 +13,7 @@ import type { MenuCategory } from '@/types'
 
 const posStore = usePosStore()
 
-const isLoading = ref(true)
+const isLoading = ref(posStore.categories.length === 0)
 const isSubmitting = ref(false)
 const isDeleting = ref(false)
 

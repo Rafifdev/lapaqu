@@ -418,7 +418,7 @@ const handleDeleteOutlet = async () => {
         <Store class="w-6 h-6" />
       </div>
       <h3 class="text-base font-bold text-[#1E293B] dark:text-white">{{ t('outlets.emptyTitle', 'Belum Ada Outlet') }}</h3>
-      <p class="text-xs text-[#64748B] dark:text-[#94A3B8] max-w-sm">
+      <p class="text-sm text-[#64748B] dark:text-[#94A3B8] max-w-sm">
         {{ t('outlets.emptyDesc', 'Daftarkan outlet usaha Anda untuk mulai mengelola meja, staf, dan terminal kasir.') }}
       </p>
       <AppButton variant="primary" size="md" @click="openCreateModal" class="mt-2 font-bold">
@@ -643,7 +643,7 @@ const handleDeleteOutlet = async () => {
           </div>
 
           <div v-else-if="connectedDevices.length === 0"
-            class="py-4 px-4 rounded-lg border border-dashed border-[#CBD5E1] dark:border-[#334155] text-center text-xs text-[#94A3B8]">
+            class="py-4 px-4 rounded-lg border border-dashed border-[#CBD5E1] dark:border-[#334155] text-center text-sm text-[#94A3B8]">
             {{ t('outlets.pairingModal.noDevices', 'Belum ada perangkat terhubung di outlet ini.') }}
           </div>
 

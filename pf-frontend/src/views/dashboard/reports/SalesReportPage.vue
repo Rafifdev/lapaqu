@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, onActivated, onBeforeUnmount, watch } from 'vue'
 import { Download } from 'lucide-vue-next'
 import AppCard from '@/components/ui/AppCard.vue'
 import AppButton from '@/components/ui/AppButton.vue'
@@ -21,7 +21,7 @@ const { formatCurrency, formatNumber } = useFormat()
 const { isDark } = useTheme()
 const { t, translate, locale } = useDashboardI18n()
 
-const isLoading = ref(true)
+const isLoading = ref(posStore.orders.length === 0)
 const isYearLoading = ref(false)
 
 // Period Filter: Hari ini, Minggu ini, Bulan ini (default), Tahun ini
@@ -91,17 +91,27 @@ const orderTypeFilterOptions = [
   { value: 'takeaway', label: 'Takeaway' },
 ]
 
-// Lifecycle
+// Lifecycle (Instant 0ms cache on revisit, silent background sync)
 onMounted(async () => {
-  try {
-    posStore.initRealtime()
-    await posStore.fetchOrders()
-    window.addEventListener('kds:refresh', handleRefresh)
-  } catch (err) {
-    console.error('Error fetching orders:', err)
-  } finally {
+  posStore.initRealtime()
+  window.addEventListener('kds:refresh', handleRefresh)
+  if (posStore.orders.length > 0) {
     isLoading.value = false
+    posStore.fetchOrders(true)
+  } else {
+    isLoading.value = true
+    try {
+      await posStore.fetchOrders()
+    } catch (err) {
+      console.error('Error fetching orders:', err)
+    } finally {
+      isLoading.value = false
+    }
   }
+})
+
+onActivated(async () => {
+  await posStore.fetchOrders(true)
 })
 
 onBeforeUnmount(() => {

@@ -2,7 +2,8 @@
 import { onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTheme } from '@/composables/useTheme'
-import { useMotion } from '@/composables/useMotion'
+import { MotionConfig } from 'motion-v'
+import { useMotion, isReducedMotion } from '@/composables/useMotion'
 import { useSettingsModal } from '@/composables/useSettingsModal'
 import { useAuthStore } from '@/stores/auth'
 import SettingsModal from '@/components/settings/SettingsModal.vue'
@@ -43,7 +44,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen text-[#202224] dark:text-white bg-[#F5F6FA] dark:bg-[#1B2431] font-sans antialiased transition-colors duration-200">
+  <MotionConfig :reducedMotion="isReducedMotion ? 'always' : 'user'">
+    <div class="min-h-screen text-[#202224] dark:text-white bg-[#F5F6FA] dark:bg-[#1B2431] font-sans antialiased transition-colors duration-200">
     <!-- Root Router View with Pure Smooth SPA Transition -->
     <router-view v-slot="{ Component, route }">
       <AppPageTransition>
@@ -53,7 +55,8 @@ onUnmounted(() => {
 
     <!-- Global Settings Modal (Claude/Desktop-style dialog) -->
     <SettingsModal />
-  </div>
+    </div>
+  </MotionConfig>
 </template>
 
 <style>

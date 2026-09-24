@@ -1,6 +1,9 @@
 export default {
   header: {
     searchPlaceholder: 'Search dishes or drinks...',
+    searchMenu: 'Search Menu...',
+    orderProcess: 'Order Status',
+    backToMenu: 'Back to Menu',
     myOrders: 'My Orders',
     table: 'Table {table}',
     dineIn: 'Dine In',
@@ -27,12 +30,22 @@ export default {
     emptyDesc: 'Explore the menu to select your favorite dishes and beverages!',
     backToMenu: 'Back to Menu',
     subtotal: 'Order Subtotal',
-    tax: 'Restaurant Tax',
+    tax: 'Restaurant Tax (PB1)',
     serviceCharge: 'Service Charge',
     total: 'Total Payment',
     checkout: 'Proceed to Payment',
     viewCart: 'View Cart',
     itemsCount: '{count} Items',
+  },
+  orderSummary: {
+    title: 'Order Items',
+    addMoreItems: 'Add More Items',
+    summaryTitle: 'Payment Summary',
+    subtotal: 'Order Subtotal',
+    service: 'Service Charge',
+    tax: 'Restaurant Tax (PB1)',
+    grandTotal: 'Total Payment',
+    selectPayment: 'Select Payment Method',
   },
   orderStatus: {
     title: 'Table Order Status',

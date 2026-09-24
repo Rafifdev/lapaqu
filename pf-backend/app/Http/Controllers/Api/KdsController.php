@@ -19,10 +19,12 @@ class KdsController extends Controller
         $query = Order::with(['table', 'items' => function ($q) {
             $q->where('is_voided', false)->orderBy('created_at', 'asc')->orderBy('id', 'asc')->with('options');
         }])
-        ->whereIn('status', ['confirmed', 'processing', 'preparing', 'cooking', 'ready']);
+        ->whereIn('status', ['confirmed', 'processing', 'preparing', 'cooking', 'ready', 'awaiting_payment']);
 
         if ($outletId) {
             $query->where('outlet_id', $outletId);
+        } elseif ($request->user()?->tenant_id) {
+            $query->where('tenant_id', $request->user()->tenant_id);
         }
 
         $orders = $query->orderBy('created_at', 'asc')->get();

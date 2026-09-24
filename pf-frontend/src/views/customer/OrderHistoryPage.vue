@@ -127,7 +127,7 @@ const getItemsSummary = (orderItems: any[]) => {
           <AppIcon name="receipt_long" :size="32" />
         </div>
         <h3 class="text-base font-bold text-[#1E293B] dark:text-white">Belum Ada Riwayat Pesanan</h3>
-        <p class="text-xs text-[#64748B] dark:text-[#94A3B8] max-w-xs mx-auto">
+        <p class="text-sm text-[#64748B] dark:text-[#94A3B8] max-w-xs mx-auto">
           Pesanan yang Anda kirimkan ke dapur dalam sesi meja ini akan tercatat di sini.
         </p>
         <AppButton @click="router.push(menuUrl)" variant="primary" class="mt-2 !rounded-full">

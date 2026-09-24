@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { isSessionExpired, clearSessionStorage } from '@/utils/session'
+import { apiCache } from './apiCache'
 
 export const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api'
 
@@ -46,9 +47,21 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 )
 
-// Response Interceptor: Tangani error 401 (Unauthorized)
+// Response Interceptor: Cache GET responses, tangani error 401 & flush cache pada mutasi
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const config = response.config
+    const method = (config.method || 'get').toLowerCase()
+
+    if (method === 'get' && config.url) {
+      const paramStr = config.params ? JSON.stringify(config.params) : ''
+      const cacheKey = `${config.url}_${paramStr}`
+      apiCache.set(cacheKey, response.data)
+    } else if (['post', 'put', 'patch', 'delete'].includes(method)) {
+      apiCache.clear()
+    }
+    return response
+  },
   async (error) => {
     const originalRequest = error.config
     if (error.response?.status === 401 && !originalRequest?.url?.includes('/auth/login') && !originalRequest?.url?.includes('/device/login-pin')) {
@@ -56,6 +69,7 @@ apiClient.interceptors.response.use(
       sessionStorage.removeItem('lapaqu_user')
       localStorage.removeItem('lapaqu_token')
       localStorage.removeItem('lapaqu_user')
+      apiCache.clear()
 
       if (typeof window !== 'undefined') {
         const currentPath = window.location.pathname
@@ -64,7 +78,6 @@ apiClient.interceptors.response.use(
 
         if (!isPublicOrOrder) {
           if (isPosOrKds && localStorage.getItem('lapaqu_device_token')) {
-            // Stay on POS/KDS device locked screen instead of kicking to Owner login
             window.location.href = isPosOrKds ? currentPath : '/auth/login'
           } else {
             window.location.href = `/auth/login?redirect=${encodeURIComponent(currentPath)}`
@@ -76,4 +89,5 @@ apiClient.interceptors.response.use(
   }
 )
 
+export { apiCache }
 export default apiClient

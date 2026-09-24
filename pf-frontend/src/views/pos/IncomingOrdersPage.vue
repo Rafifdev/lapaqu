@@ -14,9 +14,22 @@ import type { Order } from '@/types'
 import emptyOrderIllustration from '@/assets/empty_state/empty-order.svg'
 
 const router = useRouter()
+const notyf = useNotyf()
 const { formatCurrency } = useFormat()
 const posStore = usePosStore()
 const { t, translate } = usePosKdsI18n()
+
+const handleOrderToast = (e: any) => {
+  const detail = e.detail
+  const num = detail?.orderNumber ? `#${detail.orderNumber.replace(/^ORD-/, '')}` : 'Baru'
+  const loc = detail?.tableNumber ? `Meja ${detail.tableNumber}` : 'Takeaway'
+  const amt = detail?.totalAmount ? ` (Rp ${Number(detail.totalAmount).toLocaleString('id-ID')})` : ''
+  notyf.open({
+    type: 'info',
+    message: `🔔 Pesanan Masuk: ${num} • ${loc}${amt}`,
+    duration: 6000,
+  })
+}
 
 let pollInterval: any = null
 
@@ -60,10 +73,12 @@ const getSlaVariant = (isoDate: string): 'primary' | 'warning' | 'danger' => {
 }
 
 onMounted(() => {
-  posStore.fetchOrders(orders.value.length > 0)
-  posStore.initRealtime()
+  const activeOutletId = localStorage.getItem('lapaqu_outlet_id') || undefined
+  posStore.fetchOrders(orders.value.length > 0, activeOutletId)
+  posStore.initRealtime(activeOutletId)
   pollInterval = setInterval(handleRefresh, 4000)
   window.addEventListener('kds:refresh', handleRefresh)
+  window.addEventListener('app:order-notification', handleOrderToast)
   nowInterval = setInterval(() => {
     now.value = Date.now()
   }, 30000)
@@ -73,6 +88,7 @@ onUnmounted(() => {
   if (pollInterval) clearInterval(pollInterval)
   if (nowInterval) clearInterval(nowInterval)
   window.removeEventListener('kds:refresh', handleRefresh)
+  window.removeEventListener('app:order-notification', handleOrderToast)
 })
 
 const orders = computed(() => posStore.incomingOrders)
@@ -166,8 +182,6 @@ const markAsReady = (order: Order) => {
   posStore.updateOrderStatus(order.id, 'ready')
 }
 
-const notyf = useNotyf()
-
 const markAsCompleted = async (order: Order) => {
   await posStore.updateOrderStatus(order.id, 'completed')
   notyf.success('Pesanan berhasil diselesaikan!')
@@ -246,7 +260,7 @@ const voidOrderItem = async (order: Order, itemId: string) => {
           Whoops! :(
         </h3>
         <p
-          class="text-xs sm:text-sm font-medium text-[#64748B] dark:text-[#94A3B8] mt-1.5 max-w-[280px] sm:max-w-xs md:max-w-sm leading-relaxed">
+          class="text-sm font-medium text-[#64748B] dark:text-[#94A3B8] mt-1.5 max-w-[280px] sm:max-w-xs md:max-w-sm leading-relaxed">
           {{ t('pos.emptyTitle') }}
         </p>
       </div>
@@ -319,7 +333,7 @@ const voidOrderItem = async (order: Order, itemId: string) => {
                     </span>
                   </div>
 
-                  <span v-if="item.notes" class="text-[10px] text-[#FCBE2D] italic shrink-0 max-w-[90px] truncate">
+                  <span v-if="item.notes" class="text-xs text-[#FCBE2D] italic shrink-0 max-w-[90px] truncate">
                     {{ item.notes }}
                   </span>
                 </div>

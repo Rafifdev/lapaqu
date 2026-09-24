@@ -1,5 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block');
+﻿@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block');
 @import "tailwindcss";
+@import "./colors.css";
 
 @font-face {
   font-family: 'Roboto Flex';
@@ -12,6 +13,19 @@
 
 @theme {
   --font-sans: 'Roboto Flex', sans-serif;
+  --color-primary: var(--color-primary);
+  --color-primary-hover: var(--color-primary-hover);
+  --color-primary-active: var(--color-primary-active);
+  --color-primary-light: var(--color-primary-light);
+  --color-primary-subtle: var(--color-primary-subtle);
+  --color-secondary: var(--color-secondary);
+  --color-secondary-hover: var(--color-secondary-hover);
+  --color-page: var(--color-bg-page);
+  --color-surface: var(--color-bg-surface);
+  --color-subtle: var(--color-bg-subtle);
+  --color-success: var(--color-success);
+  --color-danger: var(--color-danger);
+  --color-warning: var(--color-warning);
 }
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -71,24 +85,24 @@ html {
 
 /* DashStack Elevation & Surfaces */
 .dash-card {
-  background-color: #FFFFFF;
+  background-color: var(--color-bg-surface);
   border-radius: 12px;
-  border: 1px solid #E2E8F0;
+  border: 1px solid var(--color-border-main);
   box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.04);
 }
 
 .dark .dash-card {
-  background-color: #273142;
-  border: 1px solid #334155;
+  background-color: var(--color-bg-surface);
+  border: 1px solid var(--color-border-main);
   box-shadow: none;
 }
 
 .dash-header {
-  background-color: #F1F4F9;
+  background-color: var(--color-bg-subtle);
 }
 
 .dark .dash-header {
-  background-color: #323D4E;
+  background-color: var(--color-bg-subtle);
 }
 
 /* Hide scrollbar utility */
@@ -118,8 +132,6 @@ select:active {
   --tw-ring-offset-width: 0px !important;
   --tw-ring-width: 0px !important;
 }
-
-
 
 /* Bottom sheet modal slide up with smooth, silky entrance and soft elastic bounce */
 @keyframes sheetSlideUpBounce {
@@ -170,15 +182,15 @@ select:active {
   transform: translateY(0) !important;
 }
 
-/* Override browser default autofill bluish tint (#e8f0fe) with hover color #F5F7FA */
+/* Override browser default autofill bluish tint (#e8f0fe) with theme variable */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
-  -webkit-box-shadow: 0 0 0 1000px #F5F7FA inset !important;
-  box-shadow: 0 0 0 1000px #F5F7FA inset !important;
-  -webkit-text-fill-color: #1E293B !important;
-  caret-color: #1E293B !important;
+  -webkit-box-shadow: 0 0 0 1000px var(--color-bg-page) inset !important;
+  box-shadow: 0 0 0 1000px var(--color-bg-page) inset !important;
+  -webkit-text-fill-color: var(--color-text-main) !important;
+  caret-color: var(--color-text-main) !important;
   transition: background-color 5000s ease-in-out 0s;
 }
 
@@ -186,10 +198,10 @@ input:-webkit-autofill:active {
 .dark input:-webkit-autofill:hover,
 .dark input:-webkit-autofill:focus,
 .dark input:-webkit-autofill:active {
-  -webkit-box-shadow: 0 0 0 1000px #222B3A inset !important;
-  box-shadow: 0 0 0 1000px #222B3A inset !important;
-  -webkit-text-fill-color: #FFFFFF !important;
-  caret-color: #FFFFFF !important;
+  -webkit-box-shadow: 0 0 0 1000px var(--color-bg-surface) inset !important;
+  box-shadow: 0 0 0 1000px var(--color-bg-surface) inset !important;
+  -webkit-text-fill-color: var(--color-text-main) !important;
+  caret-color: var(--color-text-main) !important;
   transition: background-color 5000s ease-in-out 0s;
 }
 
@@ -208,25 +220,57 @@ textarea::placeholder {
   border-radius: 0.5rem !important;
 }
 
-/* Reduced Motion Support (Animasi & Transisi Minimal) */
+/* Reduced Motion Support - Tanpa Animasi (Seluruh animasi & transisi benar-benar hilang) */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
-    animation-duration: 0.01ms !important;
+    animation: none !important;
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+    transition: none !important;
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
     scroll-behavior: auto !important;
   }
 }
 
+html.reduce-motion,
+html.reduce-motion *,
+html.reduce-motion *::before,
+html.reduce-motion *::after,
+:root.reduce-motion,
 :root.reduce-motion *,
 :root.reduce-motion *::before,
-:root.reduce-motion *::after {
-  animation-duration: 0.01ms !important;
+:root.reduce-motion *::after,
+body.reduce-motion,
+body.reduce-motion * {
+  animation: none !important;
+  animation-duration: 0s !important;
+  animation-delay: 0s !important;
   animation-iteration-count: 1 !important;
-  transition-duration: 0.01ms !important;
+  transition: none !important;
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
   scroll-behavior: auto !important;
+}
+
+/* Nonaktifkan seluruh transisi Vue saat reduce-motion aktif */
+html.reduce-motion [class*="-enter-active"],
+html.reduce-motion [class*="-leave-active"],
+html.reduce-motion [class*="-enter-from"],
+html.reduce-motion [class*="-leave-to"],
+html.reduce-motion [class*="-enter-to"],
+html.reduce-motion [class*="-leave-from"],
+:root.reduce-motion [class*="-enter-active"],
+:root.reduce-motion [class*="-leave-active"],
+:root.reduce-motion [class*="-enter-from"],
+:root.reduce-motion [class*="-leave-to"] {
+  transition: none !important;
+  animation: none !important;
+  transition-duration: 0s !important;
+  animation-duration: 0s !important;
 }
 
 .notyf {

@@ -100,7 +100,7 @@ const completePayment = () => {
 
           <!-- Quick Cash Buttons -->
           <div>
-            <p class="text-[11px] font-bold text-[#606060] dark:text-[#E6E6E6]/60 mb-2">Pecahan Cepat:</p>
+            <p class="text-xs font-bold text-[#606060] dark:text-[#E6E6E6]/60 mb-2">Pecahan Cepat:</p>
             <div class="grid grid-cols-4 gap-2">
               <button
                 type="button"

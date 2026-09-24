@@ -201,7 +201,7 @@ defineExpose({ open: () => (isOpen.value = true), close, toggle })
               :class="[
                 'w-full px-3 py-2 rounded-lg text-left flex items-center justify-between transition-colors cursor-pointer text-sm',
                 String(modelValue) === String(opt.value)
-                  ? 'bg-[#4880FF]/10 text-[#4880FF] font-bold'
+                  ? 'bg-blue-50 dark:bg-blue-950/40 text-[#4880FF] dark:text-[#93C5FD] font-bold'
                   : 'text-[#202224] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] font-medium',
                 opt.disabled ? 'opacity-40 cursor-not-allowed' : ''
               ]"
@@ -211,7 +211,7 @@ defineExpose({ open: () => (isOpen.value = true), close, toggle })
                 v-if="String(modelValue) === String(opt.value)"
                 name="check"
                 :size="16"
-                class="text-[#4880FF] shrink-0 ml-2"
+                class="text-[#4880FF] dark:text-[#93C5FD] shrink-0 ml-2"
               />
             </button>
           </div>
@@ -219,7 +219,7 @@ defineExpose({ open: () => (isOpen.value = true), close, toggle })
 
         <!-- Standard flat options -->
         <template v-else>
-          <div v-if="options.length === 0" class="px-3 py-2 text-center text-xs text-[#94A3B8]">
+          <div v-if="options.length === 0" class="px-3 py-2 text-center text-sm text-[#94A3B8]">
             Tidak ada opsi
           </div>
           <button
@@ -232,7 +232,7 @@ defineExpose({ open: () => (isOpen.value = true), close, toggle })
             :class="[
               'w-full px-3 py-2 rounded-lg text-left flex items-center justify-between transition-colors cursor-pointer text-sm',
               String(modelValue) === String(opt.value)
-                ? 'bg-[#4880FF]/10 text-[#4880FF] font-bold'
+                ? 'bg-blue-50 dark:bg-blue-950/40 text-[#4880FF] dark:text-[#93C5FD] font-bold'
                 : 'text-[#202224] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] font-medium',
               opt.disabled ? 'opacity-40 cursor-not-allowed' : ''
             ]"
@@ -242,7 +242,7 @@ defineExpose({ open: () => (isOpen.value = true), close, toggle })
               v-if="String(modelValue) === String(opt.value)"
               name="check"
               :size="16"
-              class="text-[#4880FF] shrink-0 ml-2"
+              class="text-[#4880FF] dark:text-[#93C5FD] shrink-0 ml-2"
             />
           </button>
         </template>

@@ -26,6 +26,7 @@ class Outlet extends Model
         'enable_service_charge',
         'service_charge_percentage',
         'table_timeout',
+        'logo_url',
     ];
 
     protected $casts = [

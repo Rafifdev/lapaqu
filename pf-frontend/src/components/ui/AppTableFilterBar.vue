@@ -154,7 +154,7 @@ const clearDates = () => {
           type="date"
           :value="startDate"
           @input="onStartDateInput"
-          class="min-w-0 w-full bg-transparent border-0 text-xs sm:text-[13px] font-semibold text-[#1E293B] dark:text-white focus:outline-none cursor-pointer [color-scheme:light] dark:[color-scheme:dark]"
+          class="min-w-0 w-full bg-transparent border-0 text-xs sm:text-sm font-semibold text-[#1E293B] dark:text-white focus:outline-none cursor-pointer [color-scheme:light] dark:[color-scheme:dark]"
         />
         <span class="text-[#94A3B8] text-xs font-bold px-0.5 shrink-0">-</span>
         <input
@@ -162,7 +162,7 @@ const clearDates = () => {
           :value="endDate"
           :min="startDate || undefined"
           @input="onEndDateInput"
-          class="min-w-0 w-full bg-transparent border-0 text-xs sm:text-[13px] font-semibold text-[#1E293B] dark:text-white focus:outline-none cursor-pointer [color-scheme:light] dark:[color-scheme:dark]"
+          class="min-w-0 w-full bg-transparent border-0 text-xs sm:text-sm font-semibold text-[#1E293B] dark:text-white focus:outline-none cursor-pointer [color-scheme:light] dark:[color-scheme:dark]"
         />
         <button
           v-if="startDate || endDate"

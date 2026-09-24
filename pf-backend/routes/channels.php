@@ -27,21 +27,14 @@ Broadcast::channel('outlet.{outletId}', function ($user, $outletId) {
         return true;
     }
 
-    // Owner or tenant admin access to any outlet within their tenant
+    // Any user (owner or staff) belonging to the tenant of this outlet
     if ($user->tenant_id) {
         $belongsToTenant = Outlet::where('id', $outletId)
             ->where('tenant_id', $user->tenant_id)
             ->exists();
 
         if ($belongsToTenant) {
-            if (method_exists($user, 'hasRole')) {
-                if ($user->hasRole('owner') || $user->hasRole('owner', 'sanctum') || $user->hasRole('owner', 'web')) {
-                    return true;
-                }
-            }
-            if (empty($user->outlet_id)) {
-                return true;
-            }
+            return true;
         }
     }
 

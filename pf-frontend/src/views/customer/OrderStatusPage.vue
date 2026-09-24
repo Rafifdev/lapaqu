@@ -335,17 +335,15 @@ const loadOrderStatus = async () => {
       list = [activeRes.data.order]
     }
 
-    // Filter status yang valid: HANYA yang SUDAH DIBAYAR & SUDAH DITERIMA (TIDAK ADA MENUNGGU BAYAR/PENDING/BATAL)
-    const validStatuses = ['confirmed', 'processing', 'preparing', 'cooking', 'ready', 'completed']
+    // Filter status yang valid: SUDAH DIBAYAR / DITERIMA / DIBATALKAN KASIR
+    const validStatuses = ['confirmed', 'processing', 'preparing', 'cooking', 'ready', 'completed', 'cancelled']
     list = list.filter((o: any) =>
       validStatuses.includes(o.status) &&
-      o.payment_status === 'paid' &&
-      o.status !== 'cancelled' &&
       o.status !== 'expired' &&
       o.status !== 'pending_payment'
     )
 
-    // Jika targetId spesifik ada tapi belum masuk ke list meja, ambil order tersebut HANYA jika sudah dibayar & diterima
+    // Jika targetId spesifik ada tapi belum masuk ke list meja, ambil order tersebut
     if (targetId && !list.some((o: any) => o.id === targetId)) {
       try {
         const singleRes = await apiClient.get(`/public/orders/${targetId}/status`)
@@ -353,14 +351,12 @@ const loadOrderStatus = async () => {
         if (singleOrder) {
           if (
             validStatuses.includes(singleOrder.status) &&
-            singleOrder.payment_status === 'paid' &&
-            singleOrder.status !== 'cancelled' &&
             singleOrder.status !== 'expired' &&
             singleOrder.status !== 'pending_payment'
           ) {
             list.push(singleOrder)
           } else {
-            // Jika pesanan masih belum bayar atau dibatalkan, bersihkan dari active order
+            // Jika pesanan masih belum bayar atau expired, bersihkan dari active order
             if (localStorage.getItem('lapaqu_active_order_id') === targetId) {
               localStorage.removeItem('lapaqu_active_order_id')
             }
@@ -384,8 +380,10 @@ const loadOrderStatus = async () => {
       ordersList.value = []
       orderData.value = null
       activeResolvedOrderId.value = ''
-      localStorage.removeItem('lapaqu_active_order_id')
-      localStorage.removeItem('lapaqu_viewed_status_fingerprint')
+      if (activeRes?.data?.table_closed || !targetId) {
+        localStorage.removeItem('lapaqu_active_order_id')
+        localStorage.removeItem('lapaqu_viewed_status_fingerprint')
+      }
     }
   } catch (err) {
     console.error('Failed to load order status:', err)
@@ -454,7 +452,7 @@ onUnmounted(() => {
         <AppIcon name="receipt_long" :size="32" />
       </div>
       <h3 class="text-base font-bold text-[#1E293B] dark:text-white">{{ locale === 'en' ? 'No Active Orders' : 'Belum Ada Pesanan Aktif' }}</h3>
-      <p class="text-xs text-[#64748B] dark:text-[#94A3B8] max-w-xs mx-auto">
+      <p class="text-sm text-[#64748B] dark:text-[#94A3B8] max-w-xs mx-auto">
         {{ locale === 'en' ? 'Please select items from menu and place your order to track here.' : 'Silakan pilih hidangan di menu dan lakukan pemesanan untuk melihat status di sini.' }}
       </p>
       <AppButton @click="router.push(menuUrl)" variant="primary" class="mt-2 !rounded-full">
@@ -537,15 +535,21 @@ onUnmounted(() => {
                   <div class="flex flex-col items-center text-center z-10 w-16 sm:w-20 shrink-0">
                     <div :class="[
                       'w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 shadow-xs',
-                      idx < getOrderCurrentStep(ord)
-                        ? 'bg-[#4880FF] text-white'
-                        : (idx === getOrderCurrentStep(ord)
-                          ? (getOrderActiveStepInfo(ord).isFailed
-                              ? 'bg-rose-500 text-white ring-4 ring-rose-500/20 shadow-md scale-105'
-                              : 'bg-[#4880FF] text-white ring-4 ring-[#4880FF]/20 shadow-md scale-105')
-                          : 'bg-white dark:bg-[#1E293B] border-2 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500')
+                      ord.status === 'cancelled'
+                        ? 'bg-rose-500 text-white shadow-rose-500/20'
+                        : (ord.status === 'completed'
+                          ? 'bg-[#4880FF] text-white shadow-[#4880FF]/20'
+                          : (idx < getOrderCurrentStep(ord)
+                            ? 'bg-[#4880FF] text-white'
+                            : (idx === getOrderCurrentStep(ord)
+                              ? (getOrderActiveStepInfo(ord).isFailed
+                                  ? 'bg-rose-500 text-white ring-4 ring-rose-500/20 shadow-md scale-105'
+                                  : 'bg-[#4880FF] text-white ring-4 ring-[#4880FF]/20 shadow-md scale-105')
+                              : 'bg-white dark:bg-[#1E293B] border-2 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500')))
                     ]">
-                      <AppIcon v-if="idx < getOrderCurrentStep(ord)" name="check" :size="15" />
+                      <AppIcon v-if="ord.status === 'cancelled'" name="close" :size="15" />
+                      <AppIcon v-else-if="ord.status === 'completed'" name="check" :size="15" />
+                      <AppIcon v-else-if="idx < getOrderCurrentStep(ord)" name="check" :size="15" />
                       <template v-else-if="idx === getOrderCurrentStep(ord)">
                         <AppIcon v-if="getOrderActiveStepInfo(ord).isFailed" name="close" :size="15" />
                         <AppIcon v-else-if="getOrderActiveStepInfo(ord).isDone" name="check" :size="15" />
@@ -556,9 +560,11 @@ onUnmounted(() => {
 
                     <p :class="[
                       'text-[10px] sm:text-xs mt-1.5 leading-tight transition-colors',
-                      idx <= getOrderCurrentStep(ord)
-                        ? 'font-bold text-[#1E293B] dark:text-white'
-                        : 'font-medium text-[#64748B] dark:text-[#94A3B8]'
+                      ord.status === 'cancelled'
+                        ? 'font-bold text-rose-500 dark:text-rose-400'
+                        : (ord.status === 'completed' || idx <= getOrderCurrentStep(ord)
+                          ? 'font-bold text-[#1E293B] dark:text-white'
+                          : 'font-medium text-[#64748B] dark:text-[#94A3B8]')
                     ]">
                       {{ step.label }}
                     </p>
@@ -566,7 +572,11 @@ onUnmounted(() => {
 
                   <div v-if="idx < steps.length - 1" class="flex-1 mt-3.5 sm:mt-4 -mx-2 sm:-mx-3">
                     <div class="h-0.5 w-full transition-colors duration-500"
-                      :class="idx < getOrderCurrentStep(ord) ? 'bg-[#4880FF]' : 'bg-slate-200 dark:bg-slate-700'">
+                      :class="ord.status === 'cancelled'
+                        ? 'bg-rose-500'
+                        : (ord.status === 'completed' || idx < getOrderCurrentStep(ord)
+                          ? 'bg-[#4880FF]'
+                          : 'bg-slate-200 dark:bg-slate-700')">
                     </div>
                   </div>
                 </template>
@@ -589,11 +599,11 @@ onUnmounted(() => {
                 <div class="flex items-center justify-between">
                   <span class="text-[#64748B] dark:text-[#94A3B8]">Status</span>
                   <span
-                    v-if="ord.payment_status === 'paid'"
-                    class="font-bold text-emerald-500 inline-flex items-center gap-1.5"
+                    v-if="ord.status === 'cancelled' || ord.payment_status === 'cancelled'"
+                    class="font-bold text-rose-500 dark:text-rose-400 inline-flex items-center gap-1.5"
                   >
-                    <span class="leading-none">Berhasil</span>
-                    <AppIcon name="check_circle" :size="18" class="text-emerald-500 shrink-0" />
+                    <span class="leading-none">Dibatalkan</span>
+                    <AppIcon name="cancel" :size="18" class="text-rose-500 dark:text-rose-400 shrink-0" />
                   </span>
                   <span
                     v-else-if="ord.status === 'expired' || ord.payment_status === 'expired'"
@@ -603,11 +613,11 @@ onUnmounted(() => {
                     <AppIcon name="cancel" :size="18" class="text-rose-500 dark:text-rose-400 shrink-0" />
                   </span>
                   <span
-                    v-else-if="ord.status === 'cancelled' || ord.payment_status === 'cancelled'"
-                    class="font-bold text-rose-500 dark:text-rose-400 inline-flex items-center gap-1.5"
+                    v-else-if="ord.payment_status === 'paid'"
+                    class="font-bold text-emerald-500 inline-flex items-center gap-1.5"
                   >
-                    <span class="leading-none">Batal</span>
-                    <AppIcon name="cancel" :size="18" class="text-rose-500 dark:text-rose-400 shrink-0" />
+                    <span class="leading-none">Berhasil</span>
+                    <AppIcon name="check_circle" :size="18" class="text-emerald-500 shrink-0" />
                   </span>
                   <span
                     v-else

@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { usePosStore } from '@/stores/pos'
 import { usePosKdsI18n } from '@/i18n'
 import { useFormat } from '@/composables/useFormat'
+import { useNotyf } from '@/composables/useNotyf'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
@@ -12,7 +13,19 @@ import apiClient from '@/services/api'
 
 const route = useRoute()
 const posStore = usePosStore()
+const notyf = useNotyf()
 const { t, translate } = usePosKdsI18n()
+
+const handleOrderToast = (e: any) => {
+  const detail = e.detail
+  const num = detail?.orderNumber ? `#${detail.orderNumber.replace(/^ORD-/, '')}` : 'Baru'
+  const loc = detail?.tableNumber ? `Meja ${detail.tableNumber}` : 'Takeaway'
+  notyf.open({
+    type: 'info',
+    message: `🍳 Pesanan Dapur Masuk: ${num} • ${loc}`,
+    duration: 6000,
+  })
+}
 
 const pageTitle = computed(() => {
   if (route.query.status === 'ready') {
@@ -38,10 +51,12 @@ const handleKdsRefresh = (event?: any) => {
 }
 
 onMounted(() => {
+  const activeOutletId = localStorage.getItem('lapaqu_outlet_id') || undefined
   fetchKdsOrders(posStore.orders.length > 0)
-  posStore.initRealtime()
+  posStore.initRealtime(activeOutletId)
   pollingInterval = setInterval(() => fetchKdsOrders(true), 4000)
   window.addEventListener('kds:refresh', handleKdsRefresh)
+  window.addEventListener('app:order-notification', handleOrderToast)
   nowInterval = setInterval(() => {
     now.value = Date.now()
   }, 30000) // Update timer setiap 30 detik tanpa re-render berlebihan
@@ -51,6 +66,7 @@ onUnmounted(() => {
   if (pollingInterval) clearInterval(pollingInterval)
   if (nowInterval) clearInterval(nowInterval)
   window.removeEventListener('kds:refresh', handleKdsRefresh)
+  window.removeEventListener('app:order-notification', handleOrderToast)
 })
 
 const fetchKdsOrders = async (isBackground = false) => {
@@ -58,7 +74,10 @@ const fetchKdsOrders = async (isBackground = false) => {
     if (!isBackground && posStore.orders.length === 0) {
       isLoading.value = true
     }
-    const res = await apiClient.get('/kds/orders')
+    const activeOutletId = localStorage.getItem('lapaqu_outlet_id') || undefined
+    const params: any = {}
+    if (activeOutletId) params.outlet_id = activeOutletId
+    const res = await apiClient.get('/kds/orders', { params })
     const data = res.data
     if (Array.isArray(data?.orders)) {
         const activeKdsOrders = data.orders.map((o: any) => {
@@ -479,7 +498,7 @@ const markAsCompleted = async (order: any) => {
           Whoops! :(
         </h3>
         <p
-          class="text-xs sm:text-sm font-medium text-[#64748B] dark:text-[#94A3B8] mt-1.5 max-w-[280px] sm:max-w-xs md:max-w-sm leading-relaxed">
+          class="text-sm font-medium text-[#64748B] dark:text-[#94A3B8] mt-1.5 max-w-[280px] sm:max-w-xs md:max-w-sm leading-relaxed">
           {{ route.query.status === 'confirmed' ? 'Belum ada pesanan yang menunggu dimasak' : route.query.status === 'preparing' ? 'Belum ada pesanan yang sedang dimasak' : route.query.status === 'ready' ? 'Belum ada pesanan yang siap disajikan' : 'Belum ada antrean pesanan dapur saat ini' }}
         </p>
       </div>
@@ -564,7 +583,7 @@ const markAsCompleted = async (order: any) => {
 
                   </div>
 
-                  <span v-if="item.notes" class="text-[10px] text-[#FCBE2D] italic shrink-0 max-w-[90px] truncate">
+                  <span v-if="item.notes" class="text-xs text-[#FCBE2D] italic shrink-0 max-w-[90px] truncate">
                     {{ item.notes }}
                   </span>
                 </div>

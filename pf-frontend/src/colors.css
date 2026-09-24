@@ -1,0 +1,810 @@
+﻿/* Light mode */
+
+:root {
+  /* [PRIMARY BRAND] - Material 3 Blue (Lapaqu Original Brand Blue #4880FF) */
+  --color-primary: #4880FF;
+  --color-primary-hover: #3971F0;
+  --color-primary-active: #2F64E0;
+  --color-primary-light: #EBF1FF;
+  --color-primary-subtle: #F0F4FF;
+  --color-primary-gradient-to: #3B5BFF;
+  --color-primary-text: #4880FF;
+  --color-on-primary: #FFFFFF;
+  --color-text-on-primary: #FFFFFF;
+
+  /* [SECONDARY / NEUTRAL] - Material 3 Secondary Container (#F1F3F4) */
+  --color-secondary: #F1F3F4;
+  --color-secondary-hover: #E8EAED;
+  --color-secondary-active: #DADCE0;
+  --color-secondary-text: #202124;
+  --color-secondary-border: #DADCE0;
+
+  /* [BACKGROUNDS & SURFACES] - Material Design Surface System */
+  --color-bg-page: #F5F6FA;
+  /* Material Surface Baseline Light (#F8F9FA) */
+  --color-bg-surface: #FFFFFF;
+  /* Material Card Container (#FFFFFF) */
+  --color-bg-subtle: #F1F3F4;
+  /* Material Surface Container High (#F1F3F4) */
+  --color-bg-hover: #E8EAED;
+  /* Material Surface Container Highest (#E8EAED) */
+  --color-bg-active: #E1E3E6;
+  /* Material Pressed State (#E1E3E6) */
+  --color-bg-dark: #202124;
+  /* Material Deep Dark Surface (#202124) */
+
+  /* [BORDERS & DIVIDERS] - Material 3 Outline & Outline Variant */
+  --color-border-main: #DADCE0;
+  /* Material 3 Outline Variant (#DADCE0) */
+  --color-border-subtle: #F1F3F4;
+  /* Material Divider (#F1F3F4) */
+  --color-border-strong: #BDC1C6;
+  /* Material 3 Outline (#BDC1C6) */
+  --color-border-primary: #4880FF;
+  /* Material Primary Focus Outline */
+
+  /* [TYPOGRAPHY & TEXT] - Material Design On-Surface System */
+  --color-text-title: #202124;
+  /* Material High-Emphasis On-Surface (#202124) */
+  --color-text-main: #3C4043;
+  /* Material Medium-High On-Surface (#3C4043) */
+  --color-text-muted: #5F6368;
+  /* Material Medium-Emphasis On-Surface-Variant (#5F6368) */
+  --color-text-dimmed: #80868B;
+  /* Material Low-Emphasis Disabled / Placeholder (#80868B) */
+  --color-text-white: #FFFFFF;
+  /* Teks putih bersih */
+  --color-text-black: #000000;
+  /* Teks hitam pekat */
+  --color-text-primary: #4880FF;
+  /* Material Blue Primary Text (#1A73E8) */
+  --color-text-secondary: #5F6368;
+  /* Material Secondary Text (#5F6368) */
+  --color-text-success: #137333;
+  /* Material Green 40 (#137333) */
+  --color-text-danger: #D93025;
+  /* Material Red 40 (#D93025) */
+  --color-text-warning: #B06000;
+  /* Material Amber 40 (#B06000) */
+
+  /* [SEMANTIC: SUCCESS] - Material 3 Green 40 */
+  --color-success: #1E8E3E;
+  --color-success-hover: #188038;
+  --color-success-active: #137333;
+  --color-success-light: #E6F4EA;
+  /* Material Success Container Light (#E6F4EA) */
+  --color-success-border: #1E8E3E;
+  --color-success-text: #137333;
+
+  /* [SEMANTIC: DANGER / ERROR] - Material 3 Error 40 */
+  --color-danger: #D93025;
+  --color-danger-hover: #C5221F;
+  --color-danger-active: #B31412;
+  --color-danger-light: #FCE8E6;
+  /* Material Error Container Light (#FCE8E6) */
+  --color-danger-border: #D93025;
+  --color-danger-text: #C5221F;
+
+  /* [SEMANTIC: WARNING] - Material 3 Warning / Tertiary 40 */
+  --color-warning: #F29900;
+  --color-warning-hover: #E37400;
+  --color-warning-active: #B06000;
+  --color-warning-light: #FEF7E0;
+  /* Material Warning Container Light (#FEF7E0) */
+  --color-warning-border: #F29900;
+  --color-warning-text: #B06000;
+
+  /* [SEMANTIC: SPECIAL ACCENTS] - Material Purple & Indigo */
+  --color-purple: #8430CE;
+  --color-purple-light: #F3E8FD;
+  --color-purple-text: #8430CE;
+  --color-indigo: #3F51B5;
+  --color-indigo-light: #E8EAF6;
+  --color-indigo-text: #3F51B5;
+
+  /* [BASE NEUTRALS] */
+  --color-white: #FFFFFF;
+  --color-black: #000000;
+}
+
+/* Dark Mode */
+
+.dark {
+  /* [PRIMARY BRAND IN DARK MODE] - Material 3 Blue Tone 50/60 (Option A: Royal Cobalt Blue) */
+  --color-primary: #2563EB;
+  --color-primary-hover: #1D4ED8;
+  --color-primary-active: #1E40AF;
+  --color-primary-light: rgba(37, 99, 235, 0.20);
+  --color-primary-subtle: rgba(37, 99, 235, 0.12);
+  --color-primary-gradient-to: #3B82F6;
+  --color-primary-text: #60A5FA;
+  --color-on-primary: #FFFFFF;
+  --color-text-on-primary: #FFFFFF;
+
+  /* [SECONDARY / NEUTRAL IN DARK MODE] - Material 3 Secondary Container */
+  --color-secondary: #2B2D31;
+  --color-secondary-hover: #383D48;
+  --color-secondary-active: #1F2228;
+  --color-secondary-text: #E2E2E5;
+  --color-secondary-border: #44474E;
+
+  /* [BACKGROUNDS & SURFACES IN DARK MODE] - Material Design Surface Container System */
+  --color-bg-page: #121212;
+  /* Material Surface Baseline (#121212) */
+  --color-bg-surface: #1E1E1E;
+  /* Material Elevation 1/2 Card Container (#1E1E1E) */
+  --color-bg-subtle: #282828;
+  /* Material Surface Container High (#282828) */
+  --color-bg-hover: #333333;
+  /* Material Surface Container Highest (#333333) */
+  --color-bg-active: #2A2A2A;
+  /* Material Pressed / Selected State */
+  --color-bg-dark: #0E0E0E;
+  /* Material Deep Dark (#0E0E0E) */
+
+  /* [BORDERS & DIVIDERS IN DARK MODE] - Material 3 Outline & Outline Variant */
+  --color-border-main: #2E2E2E;
+  /* Material Outline Variant (#2E2E2E) */
+  --color-border-subtle: #242424;
+  /* Material Divider (#242424) */
+  --color-border-strong: #44474E;
+  /* Material Outline Strong (#44474E) */
+  --color-border-primary: #3B82F6;
+  /* Material Primary Focus Outline */
+
+  /* [TYPOGRAPHY & TEXT IN DARK MODE] - Material Design On-Surface System */
+  --color-text-title: #E6E1E5;
+  /* Material High-Emphasis On-Surface (#E6E1E5) */
+  --color-text-main: #E2E2E5;
+  /* Material Medium-High On-Surface (#E2E2E5) */
+  --color-text-muted: #C4C7C5;
+  /* Material Medium-Emphasis On-Surface-Variant (#C4C7C5) */
+  --color-text-dimmed: #8E918F;
+  /* Material Low-Emphasis Disabled / Placeholder (#8E918F) */
+  --color-text-white: #FFFFFF;
+  /* Teks putih bersih */
+  --color-text-black: #000000;
+  /* Teks hitam pekat */
+  --color-text-primary: #60A5FA;
+  /* Material Blue 200/80 */
+  --color-text-secondary: #C4C7C5;
+  /* Material Secondary Text */
+  --color-text-success: #81C784;
+  /* Material Green 80 */
+  --color-text-danger: #F2B8B5;
+  /* Material Error 80 */
+  --color-text-warning: #FFD54F;
+  /* Material Amber 80 */
+  /* [SEMANTIC: SUCCESS IN DARK MODE] - Material 3 Green 80 */
+  --color-success: #81C784;
+  --color-success-hover: #A5D6A7;
+  --color-success-active: #66BB6A;
+  --color-success-light: rgba(129, 199, 132, 0.16);
+  --color-success-border: #81C784;
+  --color-success-text: #81C784;
+
+  /* [SEMANTIC: DANGER IN DARK MODE] - Material 3 Error 80 */
+  --color-danger: #F2B8B5;
+  --color-danger-hover: #F9DEDC;
+  --color-danger-active: #E28C88;
+  --color-danger-light: rgba(242, 184, 181, 0.16);
+  --color-danger-border: #F2B8B5;
+  --color-danger-text: #F2B8B5;
+
+  /* [SEMANTIC: WARNING IN DARK MODE] - Material 3 Amber / Tertiary 80 */
+  --color-warning: #FFD54F;
+  --color-warning-hover: #FFE082;
+  --color-warning-active: #FFCA28;
+  --color-warning-light: rgba(255, 213, 79, 0.16);
+  --color-warning-border: #FFD54F;
+  --color-warning-text: #FFD54F;
+
+  /* [SEMANTIC: SPECIAL ACCENTS IN DARK MODE] - Material 3 Purple & Indigo 80 */
+  --color-purple: #D0BCFF;
+  --color-purple-light: rgba(208, 188, 255, 0.16);
+  --color-purple-text: #D0BCFF;
+  --color-indigo: #9FA8DA;
+  --color-indigo-light: rgba(159, 168, 218, 0.16);
+  --color-indigo-text: #9FA8DA;
+}
+
+/* --------------------------------------------------------------------------
+   3. CLASS KHUSUS SEMANTIK & KOMPONEN
+   -------------------------------------------------------------------------- */
+/* PRIMARY UTILITIES & COMPONENTS */
+.primary {
+  color: var(--color-primary);
+}
+
+.bg-primary {
+  background-color: var(--color-primary) !important;
+}
+
+.bg-primary-hover:hover {
+  background-color: var(--color-primary-hover) !important;
+}
+
+.bg-primary-active:active {
+  background-color: var(--color-primary-active) !important;
+}
+
+.bg-primary-light {
+  background-color: var(--color-primary-light) !important;
+}
+
+.text-primary {
+  color: var(--color-primary-text) !important;
+}
+
+.border-primary {
+  border-color: var(--color-border-primary) !important;
+}
+
+.ring-primary {
+  --tw-ring-color: var(--color-primary) !important;
+}
+
+.btn-primary {
+  background-color: var(--color-primary) !important;
+  color: var(--color-on-primary) !important;
+  border: 1px solid transparent !important;
+  transition: all 0.15s ease-in-out;
+}
+
+.btn-primary:hover {
+  background-color: var(--color-primary-hover) !important;
+}
+
+.btn-primary:active {
+  background-color: var(--color-primary-active) !important;
+}
+
+.badge-primary {
+  background-color: var(--color-primary-light) !important;
+  color: var(--color-primary-text) !important;
+}
+
+/* SECONDARY UTILITIES & COMPONENTS */
+.secondary {
+  color: var(--color-secondary-text);
+}
+
+.bg-secondary {
+  background-color: var(--color-secondary) !important;
+}
+
+.bg-secondary-hover:hover {
+  background-color: var(--color-secondary-hover) !important;
+}
+
+.text-secondary {
+  color: var(--color-secondary-text) !important;
+}
+
+.border-secondary {
+  border-color: var(--color-secondary-border) !important;
+}
+
+.btn-secondary {
+  background-color: var(--color-secondary) !important;
+  color: var(--color-secondary-text) !important;
+  border: 1px solid var(--color-border-main) !important;
+  transition: all 0.15s ease-in-out;
+}
+
+.btn-secondary:hover {
+  background-color: var(--color-secondary-hover) !important;
+}
+
+.btn-secondary:active {
+  background-color: var(--color-secondary-active) !important;
+}
+
+.badge-secondary,
+.badge-neutral {
+  background-color: var(--color-secondary) !important;
+  color: var(--color-text-muted) !important;
+}
+
+/* BACKGROUNDS & SURFACES UTILITIES */
+.bg-page {
+  background-color: var(--color-bg-page) !important;
+}
+
+.bg-surface {
+  background-color: var(--color-bg-surface) !important;
+}
+
+.bg-subtle {
+  background-color: var(--color-bg-subtle) !important;
+}
+
+.bg-hover:hover {
+  background-color: var(--color-bg-hover) !important;
+}
+
+.bg-dark-slate {
+  background-color: var(--color-bg-dark) !important;
+}
+
+/* BORDERS UTILITIES */
+.border-main {
+  border-color: var(--color-border-main) !important;
+}
+
+.border-subtle {
+  border-color: var(--color-border-subtle) !important;
+}
+
+.border-strong {
+  border-color: var(--color-border-strong) !important;
+}
+
+/* TYPOGRAPHY UTILITIES */
+.text-title {
+  color: var(--color-text-title) !important;
+}
+
+.text-main {
+  color: var(--color-text-main) !important;
+}
+
+.text-muted {
+  color: var(--color-text-muted) !important;
+}
+
+.text-dimmed {
+  color: var(--color-text-dimmed) !important;
+}
+
+.text-white {
+  color: var(--color-text-white) !important;
+}
+
+.text-black {
+  color: var(--color-text-black) !important;
+}
+
+.text-primary {
+  color: var(--color-text-primary) !important;
+}
+
+.text-secondary {
+  color: var(--color-text-secondary) !important;
+}
+
+.text-success {
+  color: var(--color-text-success) !important;
+}
+
+.text-danger {
+  color: var(--color-text-danger) !important;
+}
+
+.text-warning {
+  color: var(--color-text-warning) !important;
+}
+
+/* SEMANTIC STATUS: SUCCESS */
+.success {
+  color: var(--color-success);
+}
+
+.bg-success {
+  background-color: var(--color-success) !important;
+}
+
+.bg-success-light {
+  background-color: var(--color-success-light) !important;
+}
+
+.text-success {
+  color: var(--color-success-text) !important;
+}
+
+.border-success {
+  border-color: var(--color-success-border) !important;
+}
+
+.btn-success {
+  background-color: var(--color-success) !important;
+  color: var(--color-on-primary) !important;
+  border: 1px solid transparent !important;
+  transition: all 0.15s ease-in-out;
+}
+
+.btn-success:hover {
+  background-color: var(--color-success-hover) !important;
+}
+
+.btn-success:active {
+  background-color: var(--color-success-active) !important;
+}
+
+.badge-success {
+  background-color: var(--color-success-light) !important;
+  color: var(--color-success-text) !important;
+}
+
+/* SEMANTIC STATUS: DANGER / ERROR */
+.danger {
+  color: var(--color-danger);
+}
+
+.bg-danger {
+  background-color: var(--color-danger) !important;
+}
+
+.bg-danger-light {
+  background-color: var(--color-danger-light) !important;
+}
+
+.text-danger {
+  color: var(--color-danger-text) !important;
+}
+
+.border-danger {
+  border-color: var(--color-danger-border) !important;
+}
+
+.btn-danger {
+  background-color: var(--color-danger) !important;
+  color: var(--color-on-primary) !important;
+  border: 1px solid transparent !important;
+  transition: all 0.15s ease-in-out;
+}
+
+.btn-danger:hover {
+  background-color: var(--color-danger-hover) !important;
+}
+
+.btn-danger:active {
+  background-color: var(--color-danger-active) !important;
+}
+
+.badge-danger {
+  background-color: var(--color-danger-light) !important;
+  color: var(--color-danger-text) !important;
+}
+
+/* SEMANTIC STATUS: WARNING */
+.warning {
+  color: var(--color-warning);
+}
+
+.bg-warning {
+  background-color: var(--color-warning) !important;
+}
+
+.bg-warning-light {
+  background-color: var(--color-warning-light) !important;
+}
+
+.text-warning {
+  color: var(--color-warning-text) !important;
+}
+
+.border-warning {
+  border-color: var(--color-warning-border) !important;
+}
+
+.btn-warning {
+  background-color: var(--color-warning) !important;
+  color: var(--color-on-primary) !important;
+  border: 1px solid transparent !important;
+  transition: all 0.15s ease-in-out;
+}
+
+.btn-warning:hover {
+  background-color: var(--color-warning-hover) !important;
+}
+
+.btn-warning:active {
+  background-color: var(--color-warning-active) !important;
+}
+
+.badge-warning {
+  background-color: var(--color-warning-light) !important;
+  color: var(--color-warning-text) !important;
+}
+
+/* SPECIAL ACCENTS: PURPLE & INDIGO */
+.bg-purple {
+  background-color: var(--color-purple) !important;
+}
+
+.text-purple {
+  color: var(--color-purple) !important;
+}
+
+.badge-purple {
+  background-color: var(--color-purple-light) !important;
+  color: var(--color-purple-text) !important;
+}
+
+.bg-indigo {
+  background-color: var(--color-indigo) !important;
+}
+
+.text-indigo {
+  color: var(--color-indigo) !important;
+}
+
+.badge-indigo {
+  background-color: var(--color-indigo-light) !important;
+  color: var(--color-indigo-text) !important;
+}
+
+/* --------------------------------------------------------------------------
+   4. DIRECT GLOBAL COMPONENT BINDINGS (100% KOMPONEN TERKONEKSI)
+   Menggunakan selector class presisi (bukan substring wildcard) agar state hover
+   seperti hover:text-[#4880FF] tidak membuat elemen idle ikut membiru!
+   -------------------------------------------------------------------------- */
+
+/* PRIMARY BINDINGS */
+
+.bg-\[\#4880FF\],
+.bg-\[\#3B5BFF\] {
+  background-color: var(--color-primary) !important;
+}
+
+.hover\:bg-\[\#3971F0\]:hover,
+.hover\:bg-\[\#3B6FE8\]:hover,
+.hover\:bg-\[\#3568DF\]:hover {
+  background-color: var(--color-primary-hover) !important;
+}
+
+.active\:bg-\[\#2F64E0\]:active,
+.active\:bg-\[\#1D4ED8\]:active,
+.active\:bg-\[\#1E40AF\]:active {
+  background-color: var(--color-primary-active) !important;
+}
+
+.bg-\[\#E2EAF8\],
+.bg-\[\#EBF1FF\] {
+  background-color: var(--color-primary-light) !important;
+}
+
+.text-\[\#4880FF\] {
+  color: var(--color-text-primary) !important;
+}
+
+.hover\:text-\[\#4880FF\]:hover {
+  color: var(--color-primary-hover) !important;
+}
+
+.group:hover .group-hover\:text-\[\#4880FF\] {
+  color: var(--color-primary-hover) !important;
+}
+
+.dark .dark\:text-\[\#93C5FD\],
+.dark .dark\:text-\[\#60A5FA\] {
+  color: var(--color-text-primary) !important;
+}
+
+.border-\[\#4880FF\] {
+  border-color: var(--color-border-primary) !important;
+}
+
+.hover\:border-\[\#4880FF\]:hover {
+  border-color: var(--color-border-primary) !important;
+}
+
+.focus\:border-\[\#4880FF\]:focus {
+  border-color: var(--color-border-primary) !important;
+}
+
+.ring-\[\#4880FF\],
+.focus\:ring-\[\#4880FF\]:focus {
+  --tw-ring-color: var(--color-primary) !important;
+}
+
+/* PAGE BACKGROUND BINDINGS */
+.bg-\[\#F5F6FA\],
+.bg-\[\#F5F7FA\] {
+  background-color: var(--color-bg-page) !important;
+}
+
+.dark .dark\:bg-\[\#1B2431\],
+.dark .dark\:bg-\[\#0F172A\],
+.dark .dark\:bg-\[\#151D2A\],
+.dark .dark\:bg-\[\#1A2232\] {
+  background-color: var(--color-bg-page) !important;
+}
+
+/* SURFACES & CARD BINDINGS */
+.dash-card {
+  background-color: var(--color-bg-surface) !important;
+}
+
+.dark .dark\:bg-\[\#273142\],
+.dark .dark\:bg-\[\#202936\],
+.dark .dark\:bg-\[\#1E293B\] {
+  background-color: var(--color-bg-surface) !important;
+}
+
+/* SUBTLE BAR & HEADER BINDINGS */
+.dash-header,
+.bg-\[\#F1F4F9\],
+.bg-\[\#F1F5F9\],
+.bg-\[\#F8FAFC\] {
+  background-color: var(--color-bg-subtle) !important;
+}
+
+.dark .dash-header,
+.dark .dark\:bg-\[\#323D4E\],
+.dark .dark\:bg-\[\#313D4F\] {
+  background-color: var(--color-bg-subtle) !important;
+}
+
+/* BORDER BINDINGS */
+.border-\[\#E2E8F0\],
+.border-\[\#E8E8E8\],
+.border-\[\#EAEAEA\] {
+  border-color: var(--color-border-main) !important;
+}
+
+.dark .dark\:border-\[\#334155\],
+.dark .dark\:border-\[\#313D4F\] {
+  border-color: var(--color-border-main) !important;
+}
+
+.border-\[\#CBD5E1\] {
+  border-color: var(--color-border-strong) !important;
+}
+
+.dark .dark\:border-\[\#475569\] {
+  border-color: var(--color-border-strong) !important;
+}
+
+/* TYPOGRAPHY BINDINGS - Presisi tanpa merusak hover */
+.text-\[\#202224\] {
+  color: var(--color-text-title) !important;
+}
+
+.text-\[\#1E293B\] {
+  color: var(--color-text-main) !important;
+}
+
+.text-\[\#64748B\],
+.text-\[\#475569\],
+.text-\[\#606060\] {
+  color: var(--color-text-muted) !important;
+}
+
+.dark .dark\:text-\[\#94A3B8\],
+.dark .dark\:text-\[\#CBD5E1\],
+.dark .dark\:text-\[\#A6A6A6\],
+.dark .dark\:text-\[\#E6E6E6\] {
+  color: var(--color-text-muted) !important;
+}
+
+/* STATUS SUCCESS BINDINGS */
+.bg-\[\#00B69B\],
+.bg-\[\#16A34A\] {
+  background-color: var(--color-success) !important;
+}
+
+.text-\[\#00B69B\],
+.text-\[\#16A34A\] {
+  color: var(--color-text-success) !important;
+}
+
+.dark .dark\:text-\[\#4ADE80\] {
+  color: var(--color-text-success) !important;
+}
+
+.bg-\[\#E6F9F5\],
+.bg-\[\#DCFCE7\],
+.bg-\[\#E8F8F3\] {
+  background-color: var(--color-success-light) !important;
+}
+
+/* STATUS DANGER BINDINGS */
+.bg-\[\#FD5454\],
+.bg-\[\#EC4453\],
+.bg-\[\#EF4444\],
+.bg-\[\#EF3826\] {
+  background-color: var(--color-danger) !important;
+}
+
+.text-\[\#FD5454\],
+.text-\[\#EC4453\],
+.text-\[\#EF4444\],
+.text-\[\#EF3826\] {
+  color: var(--color-text-danger) !important;
+}
+
+.dark .dark\:text-\[\#F87171\] {
+  color: var(--color-text-danger) !important;
+}
+
+.bg-\[\#FFEBEB\],
+.bg-\[\#FEE2E2\],
+.bg-\[\#FEECEE\] {
+  background-color: var(--color-danger-light) !important;
+}
+
+/* STATUS WARNING BINDINGS */
+.bg-\[\#FFA756\],
+.bg-\[\#FCBE2D\],
+.bg-\[\#FBBF24\],
+.bg-\[\#D97706\] {
+  background-color: var(--color-warning) !important;
+}
+
+.text-\[\#FFA756\],
+.text-\[\#FCBE2D\],
+.text-\[\#FBBF24\],
+.text-\[\#D97706\] {
+  color: var(--color-text-warning) !important;
+}
+
+.bg-\[\#FEF3C7\] {
+  background-color: var(--color-warning-light) !important;
+}
+/* DROPDOWN & MENU SELECTION BINDINGS */
+.bg-blue-50,
+.bg-\[\#4880FF\]\/10 {
+  background-color: var(--color-primary-light) !important;
+}
+
+.dark .dark\:bg-blue-950\/40,
+.dark .dark\:bg-blue-900\/30,
+.dark .dark\:bg-blue-900\/50,
+.dark .dark\:bg-\[\#4880FF\]\/10,
+.dark .dark\:bg-\[\#4880FF\]\/20 {
+  background-color: var(--color-primary-light) !important;
+}
+
+.dark .dark\:text-\[\#93C5FD\],
+.dark .dark\:text-blue-300,
+.dark .dark\:text-blue-400 {
+  color: var(--color-primary) !important;
+}
+
+.dark .dark\:hover\:bg-\[\#334155\]:hover,
+.dark .dark\:hover\:bg-\[\#334155\]\/60:hover {
+  background-color: var(--color-bg-subtle) !important;
+}
+
+/* ADDITIONAL RESIDUAL BLUE OVERRIDES */
+.text-blue-600,
+.text-blue-500 {
+  color: var(--color-primary) !important;
+}
+
+.hover\:text-blue-600:hover,
+.hover\:text-blue-500:hover {
+  color: var(--color-primary-hover) !important;
+}
+
+.group:hover .group-hover\:text-blue-600 {
+  color: var(--color-primary-hover) !important;
+}
+
+.bg-blue-600,
+.bg-blue-500 {
+  background-color: var(--color-primary) !important;
+}
+
+.hover\:bg-blue-50:hover,
+.hover\:bg-blue-100:hover {
+  background-color: var(--color-primary-light) !important;
+}
+
+.dark .dark\:hover\:bg-blue-500\/10:hover,
+.dark .dark\:hover\:bg-blue-600\/20:hover {
+  background-color: var(--color-primary-light) !important;
+}
+
+.border-blue-200,
+.border-blue-300,
+.dark .dark\:border-blue-500\/20 {
+  border-color: var(--color-primary-light) !important;
+}
+
+.text-blue-800,
+.dark .dark\:text-blue-200 {
+  color: var(--color-primary-text) !important;
+}

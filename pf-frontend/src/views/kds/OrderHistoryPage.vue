@@ -214,10 +214,6 @@ const formatItemsText = (items?: any[]) => {
       <h1 class="text-2xl font-bold text-[#202224] dark:text-white">
         {{ t('kds.historyTitle', 'Riwayat Pesanan') }}
       </h1>
-
-      <span class="text-xs font-semibold px-3 py-1 rounded-full bg-[#E2E8F0] dark:bg-[#334155] text-[#475569] dark:text-[#CBD5E1]">
-        Total: {{ historicalOrders.length }} Pesanan
-      </span>
     </div>
 
     <!-- Reusable AppTable Component with Integrated Header -->
@@ -340,7 +336,7 @@ const formatItemsText = (items?: any[]) => {
             <AppBadge :variant="getStatusBadge(selectedOrder.status).variant" size="md">
               {{ getStatusBadge(selectedOrder.status).label }}
             </AppBadge>
-            <p class="text-[11px] text-[#94A3B8] mt-1 font-mono">
+            <p class="text-xs text-[#94A3B8] mt-1 font-mono">
               {{ formatTimeOnly(selectedOrder.createdAt) }} WIB • {{ formatDate(selectedOrder.createdAt) }}
             </p>
           </div>

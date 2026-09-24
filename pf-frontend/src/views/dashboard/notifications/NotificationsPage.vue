@@ -48,7 +48,7 @@ const markAllRead = () => {
         <Bell class="w-6 h-6 text-[#4880FF]" />
       </div>
       <h3 class="text-base font-bold text-[#202224] dark:text-white">Tidak Ada Notifikasi Baru</h3>
-      <p class="text-xs text-[#64748B] dark:text-[#94A3B8] mt-1 max-w-sm mx-auto">
+      <p class="text-sm text-[#64748B] dark:text-[#94A3B8] mt-1 max-w-sm mx-auto">
         Semua pembaruan pesanan transaksi, status meja, dan langganan akan muncul di sini.
       </p>
     </div>

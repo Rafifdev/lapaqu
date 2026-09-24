@@ -19,6 +19,7 @@ class Tenant extends Model
         'status',
         'trial_ends_at',
         'churned_at',
+        'logo_url',
     ];
 
     protected $casts = [

@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePosStore } from '@/stores/pos'
-import { useCartStore } from '@/stores/cart'
+import { useCartStore, isPendingOrderExpired } from '@/stores/cart'
 import { useFormat } from '@/composables/useFormat'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
@@ -110,8 +110,12 @@ const addToCart = () => {
   const outletId = (route.params.outletId as string) || cartStore.outletId || ''
   const tableCode = (route.params.tableCode as string) || cartStore.tableCode || ''
   if (cartStore.hasPendingOrder) {
-    router.push(`/order/${outletId}/${tableCode}/my-order?openQris=1`)
-    return
+    if (isPendingOrderExpired(cartStore.pendingOrder)) {
+      cartStore.clearPendingOrder()
+    } else {
+      router.push(`/order/${outletId}/${tableCode}/my-order?openQris=1`)
+      return
+    }
   }
   cartStore.addItem(item.value, quantity.value, computedSelectedOptions.value, notes.value)
   router.push(`/order/${outletId}/${tableCode}/my-order`)

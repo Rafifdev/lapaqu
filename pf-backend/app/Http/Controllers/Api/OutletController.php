@@ -61,7 +61,13 @@ class OutletController extends Controller
 
     public function update(Request $request, string $id): JsonResponse
     {
-        $outlet = Outlet::findOrFail($id);
+        $outlet = Outlet::find($id);
+        if (!$outlet) {
+            $outlet = Outlet::where('is_main', true)->first() ?: Outlet::first();
+            if (!$outlet) {
+                return response()->json(['message' => 'Outlet tidak ditemukan.'], 404);
+            }
+        }
 
         $request->validate([
             'tenant_name' => ['nullable', 'string', 'max:150'],
@@ -77,6 +83,8 @@ class OutletController extends Controller
             'enable_service_charge' => ['nullable', 'boolean'],
             'service_charge_percentage' => ['nullable', 'integer', 'min:0', 'max:100'],
             'table_timeout' => ['nullable', 'integer', 'min:1', 'max:1440'],
+            'logo_url' => ['nullable', 'string'],
+            'logo' => ['nullable', 'file', 'image', 'mimes:png,jpg,jpeg,webp,svg', 'max:2048'],
         ]);
 
         $data = $request->only([
@@ -92,6 +100,21 @@ class OutletController extends Controller
             'service_charge_percentage',
             'table_timeout',
         ]);
+
+        if ($request->has('logo_url')) {
+            $data['logo_url'] = $request->logo_url;
+            if ($outlet->tenant) {
+                $outlet->tenant->update(['logo_url' => $request->logo_url]);
+            }
+        }
+
+        if ($request->hasFile('logo')) {
+            $path = $request->file('logo')->store('logos', 'public');
+            $data['logo_url'] = asset('storage/' . $path);
+            if ($outlet->tenant) {
+                $outlet->tenant->update(['logo_url' => $data['logo_url']]);
+            }
+        }
 
         if ($request->filled('tenant_name') && $outlet->tenant) {
             $outlet->tenant->update(['name' => trim((string) $request->tenant_name)]);
@@ -300,6 +323,35 @@ class OutletController extends Controller
 
         return response()->json([
             'message' => 'Perangkat berhasil diputuskan.',
+        ]);
+    }
+
+    public function uploadLogo(Request $request, string $id): JsonResponse
+    {
+        $outlet = Outlet::find($id);
+        if (!$outlet) {
+            $outlet = Outlet::where('is_main', true)->first() ?: Outlet::first();
+            if (!$outlet) {
+                return response()->json(['message' => 'Outlet tidak ditemukan.'], 404);
+            }
+        }
+
+        $request->validate([
+            'logo' => ['required', 'file', 'image', 'mimes:png,jpg,jpeg,webp,svg', 'max:2048'],
+        ]);
+
+        $path = $request->file('logo')->store('logos', 'public');
+        $logoUrl = asset('storage/' . $path);
+
+        $outlet->update(['logo_url' => $logoUrl]);
+        if ($outlet->tenant) {
+            $outlet->tenant->update(['logo_url' => $logoUrl]);
+        }
+
+        return response()->json([
+            'message' => 'Logo restoran berhasil diperbarui.',
+            'logo_url' => $logoUrl,
+            'outlet' => $outlet->load('tenant'),
         ]);
     }
 

@@ -573,8 +573,10 @@ onUnmounted(() => {
     <!-- ================= STEP 2: FORM VERIFIKASI OTP ================= -->
     <form v-else @submit.prevent="handleRegister" autocomplete="off" class="flex flex-col gap-6">
       <!-- 6-digit OTP Inputs (Responsif di semua mode layar, desktop sm:w-18 sm:h-22) -->
-      <div class="flex justify-center gap-1.5 min-[360px]:gap-2 min-[390px]:gap-2.5 min-[480px]:gap-3 sm:gap-3.5 w-full py-1.5" @paste="handleOtpPaste">
-        <input v-for="(digit, idx) in otp" :key="idx" :id="`reg-otp-${idx}`" type="text" inputmode="numeric"
+      <div
+        class="flex justify-center gap-1.5 min-[360px]:gap-2 min-[390px]:gap-2.5 min-[480px]:gap-3 sm:gap-3.5 w-full py-1.5"
+        @paste="handleOtpPaste">
+        <input v-for="(digit, idx) in otp" :key="idx" :id="`reg-otp-${id  x}`" type="text" inputmode="numeric"
           maxlength="1" :value="digit" @input="handleOtpInput(idx, $event)" @keydown="handleOtpKeydown(idx, $event)"
           class="w-10 h-14 min-[360px]:w-11 min-[360px]:h-16 min-[390px]:w-12 min-[390px]:h-[68px] min-[480px]:w-14 min-[480px]:h-20 sm:w-18 sm:h-22 text-center text-lg min-[360px]:text-xl min-[390px]:text-2xl sm:text-3xl font-black font-mono uppercase rounded-lg min-[360px]:rounded-xl sm:rounded-2xl bg-white dark:bg-[#273142] text-[#1E293B] dark:text-white transition-all duration-150 focus:outline-none shadow-sm"
           :class="[

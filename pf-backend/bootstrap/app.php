@@ -30,6 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'tenant.context' => ResolveTenantContext::class,
             'tenant.subscription' => EnforceTenantSubscriptionStatus::class,
             'role' => EnsureRole::class,
+            'redis.cache' => \App\Http\Middleware\RedisDashboardCache::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

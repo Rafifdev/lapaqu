@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onActivated, onUnmounted } from 'vue'
 import { Motion, AnimatePresence } from 'motion-v'
 import { Plus } from 'lucide-vue-next'
 import AppMenuCard from '@/components/ui/AppMenuCard.vue'
@@ -15,24 +15,39 @@ import type { MenuItem } from '@/types'
 
 const posStore = usePosStore()
 
-const isLoading = ref(true)
+const isLoading = ref(posStore.menuItems.length === 0)
 const isSubmitting = ref(false)
 const searchQuery = ref('')
 const selectedCategory = ref('all')
 
-// Fetch real dynamic categories & menu items from backend API
+// Fetch real dynamic categories & menu items from backend API (Instant 0ms render on revisit)
 onMounted(async () => {
-  isLoading.value = true
-  try {
-    await Promise.all([
+  if (posStore.menuItems.length > 0) {
+    isLoading.value = false
+    Promise.all([
       posStore.fetchCategories(),
       posStore.fetchMenuItems()
     ])
-  } catch (err: any) {
-    console.error('Failed to load menu data:', err)
-  } finally {
-    isLoading.value = false
+  } else {
+    isLoading.value = true
+    try {
+      await Promise.all([
+        posStore.fetchCategories(),
+        posStore.fetchMenuItems()
+      ])
+    } catch (err: any) {
+      console.error('Failed to load menu data:', err)
+    } finally {
+      isLoading.value = false
+    }
   }
+})
+
+onActivated(async () => {
+  await Promise.all([
+    posStore.fetchCategories(),
+    posStore.fetchMenuItems()
+  ])
 })
 
 const categories = computed(() => {
@@ -274,7 +289,7 @@ const executeDelete = async () => {
       <h3 class="text-xl sm:text-2xl font-black text-[#1E293B] dark:text-white tracking-tight">
         Whoops! :(
       </h3>
-      <p class="text-xs sm:text-sm font-medium text-[#64748B] dark:text-[#94A3B8] mt-1.5 max-w-sm leading-relaxed">
+      <p class="text-sm font-medium text-[#64748B] dark:text-[#94A3B8] mt-1.5 max-w-sm leading-relaxed">
         Menu yang anda cari tidak ditemukan. Silahkan coba kata kunci lain atau pilih kategori berbeda.
       </p>
     </div>

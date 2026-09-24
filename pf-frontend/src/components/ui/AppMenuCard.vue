@@ -118,7 +118,7 @@ const handleImageError = (e: Event) => {
         v-if="!item.isAvailable"
         class="absolute inset-0 bg-black/50 backdrop-blur-[1px] flex items-center justify-center pointer-events-none"
       >
-        <span class="text-[10px] font-black text-white px-2.5 py-0.5 rounded-full bg-rose-500 uppercase tracking-wider">
+        <span class="text-xs font-black text-white px-2.5 py-0.5 rounded-full bg-rose-500 uppercase tracking-wider">
           Habis
         </span>
       </div>
@@ -126,7 +126,7 @@ const handleImageError = (e: Event) => {
       <!-- Top-Left Badge: Portion Count with Transparent Blur Glassmorphism (Tanpa border & titik) -->
       <div class="absolute top-2.5 left-2.5 z-10 pointer-events-none">
         <span
-          class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold text-white bg-black/45 dark:bg-black/60 backdrop-blur-md shadow-xs tabular-nums tracking-wide"
+          class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold text-white bg-black/45 dark:bg-black/60 backdrop-blur-md shadow-xs tabular-nums tracking-wide"
         >
           {{ displayPortion }}
         </span>
@@ -153,7 +153,7 @@ const handleImageError = (e: Event) => {
         </h3>
 
         <!-- Rating/Sub-teks (Title ke Rating/Sub-teks: 4dp via mt-1) -->
-        <p class="text-xs text-[#94A3B8] font-medium text-left line-clamp-2 leading-snug mt-1" :title="displaySubtitle">
+        <p class="text-sm text-[#94A3B8] font-medium text-left line-clamp-2 leading-snug mt-1" :title="displaySubtitle">
           {{ displaySubtitle }}
         </p>
       </div>

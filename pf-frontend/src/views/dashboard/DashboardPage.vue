@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, onActivated, computed, watch } from 'vue'
+import { apiCache } from '@/services/apiCache'
 import apiClient from '@/services/api'
 import type { ChartData, ChartOptions } from 'chart.js'
 import AppIcon from '@/components/ui/AppIcon.vue'
@@ -35,7 +36,11 @@ const formattedCurrentDate = computed(() => {
 })
 const posStore = usePosStore()
 
-const isLoading = ref(true)
+// Instant Redis / SWR cache hydration (zero skeleton on return)
+const cachedOverview = apiCache.get('/dashboard/overview_{"period":"today"}') || apiCache.get('/dashboard/overview_')
+const hasCachedDashboard = Boolean(cachedOverview || posStore.orders.length > 0)
+
+const isLoading = ref(!hasCachedDashboard)
 const isYearLoading = ref(false)
 const selectedPeriod = ref<'today' | 'week' | 'month' | 'year'>('today')
 
@@ -48,12 +53,12 @@ const periodOptions = computed(() => [
 
 const outletInfo = ref<{ name: string; tenant: string } | null>(null)
 
-// Stats reactive state (Bersih 0 tanpa dummy mockup)
+// Stats reactive state (Pre-hydrated from cache if available for instant 0ms render)
 const statsData = ref({
-  total_customers: 0,
-  total_orders: 0,
-  total_sales: 0,
-  total_pending: 0,
+  total_customers: cachedOverview?.stats?.total_customers ?? 0,
+  total_orders: cachedOverview?.stats?.total_orders ?? 0,
+  total_sales: cachedOverview?.stats?.total_sales ?? 0,
+  total_pending: cachedOverview?.stats?.total_pending ?? 0,
 })
 
 // Trend Dinamis (% Naik/Turun vs Periode Sebelumnya)
@@ -701,10 +706,20 @@ let pollInterval: any = null
 
 onMounted(async () => {
   posStore.initRealtime()
-  await Promise.allSettled([
-    posStore.fetchOrders(false),
-    fetchDashboardData(),
-  ])
+  if (hasCachedDashboard) {
+    isLoading.value = false
+    // Silent background sync with Redis
+    Promise.allSettled([
+      posStore.fetchOrders(true),
+      fetchDashboardData(),
+    ])
+  } else {
+    await Promise.allSettled([
+      posStore.fetchOrders(false),
+      fetchDashboardData(),
+    ])
+    isLoading.value = false
+  }
   window.addEventListener('kds:refresh', handleRealtimeSync)
 
   // Interval polling backup setiap 10 detik di background secara mulus
@@ -712,6 +727,14 @@ onMounted(async () => {
     await posStore.fetchOrders(true)
     await fetchDashboardData()
   }, 10000)
+})
+
+onActivated(async () => {
+  // Instant revisit: page is already shown (0ms skeleton), silently sync from Redis
+  await Promise.allSettled([
+    posStore.fetchOrders(true),
+    fetchDashboardData(),
+  ])
 })
 
 onBeforeUnmount(() => {

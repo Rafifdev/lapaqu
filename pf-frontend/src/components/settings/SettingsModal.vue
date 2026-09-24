@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppToggle from '@/components/ui/AppToggle.vue'
@@ -7,19 +7,70 @@ import AppSelect from '@/components/ui/AppSelect.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppSearchInput from '@/components/ui/AppSearchInput.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
+import { Motion } from 'motion-v'
 import { useFormat } from '@/composables/useFormat'
 import { useDashboardI18n, usePosKdsI18n, useCustomerI18n, SUPPORTED_LOCALES } from '@/i18n'
 import { useTheme } from '@/composables/useTheme'
+import soundService from '@/services/soundService'
+import notificationService from '@/services/notificationService'
 import { useMotion } from '@/composables/useMotion'
 import { useNotyf } from '@/composables/useNotyf'
 import { useAuthStore } from '@/stores/auth'
 import { useSettingsModal, type SettingsTab } from '@/composables/useSettingsModal'
 import apiClient from '@/services/api'
+import avatarManager from '@/assets/roles/avatar-manager.jpg'
+import avatarCashier from '@/assets/roles/avatar-cashier.jpg'
+import avatarKitchen from '@/assets/roles/avatar-kitchen.jpg'
 
 const { isOpen, activeTab, searchQuery, closeSettingsModal, setTab } = useSettingsModal()
 const { formatCurrency } = useFormat()
 const { isDark, toggleTheme, themePreference, setTheme } = useTheme()
 const authStore = useAuthStore()
+const customAvatarUrl = ref(localStorage.getItem('lapaqu_custom_avatar') || '')
+const avatarFileInputRef = ref<HTMLInputElement | null>(null)
+const isUploadingAvatar = ref(false)
+
+const userAvatar = computed(() => {
+  if (customAvatarUrl.value) return customAvatarUrl.value
+  if (authStore.currentUser?.avatarUrl) return authStore.currentUser.avatarUrl
+  const role = authStore.currentUser?.role
+  if (role === 'kasir') return avatarCashier
+  if (role === 'kitchen_staff') return avatarKitchen
+  return avatarManager
+})
+
+const handleAvatarChange = async (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+
+  if (!file.type.startsWith('image/')) {
+    notyf.error('Format file harus berupa gambar (PNG, JPG, WEBP).', 2000)
+    return
+  }
+
+  if (file.size > 2 * 1024 * 1024) {
+    notyf.error('Ukuran gambar maksimal 2MB.', 2000)
+    return
+  }
+
+  const reader = new FileReader()
+  reader.onload = async (event) => {
+    const dataUrl = event.target?.result as string
+    customAvatarUrl.value = dataUrl
+    localStorage.setItem('lapaqu_custom_avatar', dataUrl)
+
+    if (authStore.currentUser) {
+      authStore.currentUser.avatarUrl = dataUrl
+    }
+
+    window.dispatchEvent(new CustomEvent('lapaqu:avatar-updated', {
+      detail: { avatarUrl: dataUrl }
+    }))
+
+    notyf.success('Foto profil berhasil diperbarui!', 2000)
+  }
+  reader.readAsDataURL(file)
+}
 
 // ==========================================
 // NAVIGATION
@@ -28,6 +79,29 @@ interface NavItem {
   key: SettingsTab
   label: string
   icon: string
+}
+
+
+// Sliding pill indicator state for modal sidebar (matching AppSidebar & Topbar)
+const navContainerRef = ref<HTMLElement | null>(null)
+const indicatorTop = ref(0)
+const indicatorLeft = ref(0)
+const indicatorWidth = ref(0)
+const indicatorHeight = ref(44)
+const isIndicatorVisible = ref(false)
+
+const updateNavIndicator = () => {
+  if (!navContainerRef.value) return
+  const activeEl = navContainerRef.value.querySelector<HTMLElement>('[data-active="true"]')
+  if (activeEl) {
+    indicatorTop.value = activeEl.offsetTop
+    indicatorLeft.value = activeEl.offsetLeft
+    indicatorWidth.value = activeEl.offsetWidth
+    indicatorHeight.value = activeEl.offsetHeight
+    isIndicatorVisible.value = true
+  } else {
+    isIndicatorVisible.value = false
+  }
 }
 
 const navItems = computed<NavItem[]>(() => [
@@ -80,11 +154,13 @@ watch(isOpen, (val) => {
 
 onMounted(() => {
   loadSavedSettings()
+  window.addEventListener('resize', updateNavIndicator)
   window.addEventListener('keydown', handleKeyDown)
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown)
+  window.removeEventListener('resize', updateNavIndicator)
   if (typeof document !== 'undefined') {
     document.documentElement.style.overflow = ''
     document.body.style.overflow = ''
@@ -162,7 +238,10 @@ const tenantIdDisplay = computed(() => {
   )
 })
 
+const currentOutletId = ref(localStorage.getItem('lapaqu_outlet_id') || '')
+
 const outletIdDisplay = computed(() => {
+  if (currentOutletId.value) return currentOutletId.value
   const u = authStore.currentUser as any
   let parsedUser: any = null
   try {
@@ -188,7 +267,6 @@ const outletIdDisplay = computed(() => {
 // ==========================================
 const notifyOrderSound = ref(true)
 const notifyBrowserPush = ref(true)
-const notifyWaiterBell = ref(true)
 const notifyKdsVoid = ref(true)
 const notifyWaDaily = ref(true)
 const waAdminNumber = ref('')
@@ -201,7 +279,6 @@ const notyf = useNotyf()
 const getNotifSnapshot = () => JSON.stringify({
   notifyOrderSound: notifyOrderSound.value,
   notifyBrowserPush: notifyBrowserPush.value,
-  notifyWaiterBell: notifyWaiterBell.value,
   notifyKdsVoid: notifyKdsVoid.value,
   notifyWaDaily: notifyWaDaily.value,
   waAdminNumber: waAdminNumber.value,
@@ -219,12 +296,45 @@ const saveNotificationSettings = (silent = false) => {
 
   localStorage.setItem('lapaqu_notif_settings', currentSnapshot)
   if (!silent) {
-    notyf.success('Tersimpan')
+    notyf.success('Tersimpan', 2000)
   }
 }
 
 const saveNotificationSwitch = () => {
   saveNotificationSettings(true)
+}
+
+const onToggleOrderSound = () => {
+  saveNotificationSwitch()
+  if (notifyOrderSound.value) {
+    soundService.playOrderChime(true)
+  }
+}
+
+const onToggleBrowserPush = async () => {
+  if (notifyBrowserPush.value) {
+    const perm = await notificationService.requestPermission()
+    if (perm !== 'granted') {
+      notifyBrowserPush.value = false
+      notyf.error('Izin notifikasi ditolak oleh browser. Mohon izinkan notifikasi di setelan browser.')
+    } else {
+      notyf.success('Notifikasi browser aktif')
+      notificationService.showOrderNotification({
+        orderNumber: 'DEMO-01',
+        customerName: 'Pelanggan Meja 1',
+        totalAmount: 35000,
+        tableNumber: '1',
+      })
+    }
+  }
+  saveNotificationSwitch()
+}
+
+const onToggleKdsVoid = () => {
+  saveNotificationSwitch()
+  if (notifyKdsVoid.value) {
+    soundService.playVoidAlert(true)
+  }
 }
 
 // Handled by saveLangDashboard, saveLangPosKds, saveLangCustomer
@@ -258,7 +368,7 @@ const saveAccountSettings = async (fieldName?: string) => {
     await apiClient.put('/auth/profile', {
       name: fullName.value,
     })
-    notyf.success('Nama profil berhasil disimpan!')
+    notyf.success('Nama profil berhasil disimpan!', 2000)
   } catch (err: any) {
     notyf.error(err.response?.data?.message || 'Gagal menyimpan profil ke server.')
   }
@@ -315,7 +425,7 @@ const handleChangePassword = async () => {
     newPassword.value = ''
     confirmPassword.value = ''
     isChangePasswordOpen.value = false
-    notyf.success(res.data?.message || 'Kata sandi berhasil diperbarui!')
+    notyf.success(res.data?.message || 'Kata sandi berhasil diperbarui!', 2000)
   } catch (err: any) {
     passwordError.value =
       err.response?.data?.message ||
@@ -339,68 +449,92 @@ const tenantName = ref(localStorage.getItem('lapaqu_tenant_name') || (authStore.
 const outletName = ref(localStorage.getItem('lapaqu_outlet_name') || (authStore.currentUser as any)?.outlet?.name || '')
 const outletSlogan = ref('')
 const outletAddress = ref('')
+const restaurantLogo = ref(localStorage.getItem('lapaqu_restaurant_logo') || '')
+const logoFileInputRef = ref<HTMLInputElement | null>(null)
+const isUploadingLogo = ref(false)
 
-// Pengajuan Perubahan Alamat State
-const isAddressChangeModalOpen = ref(false)
-const isAddressPendingApproval = ref(false)
-const pendingNewAddress = ref('')
-const pendingAddressReason = ref('')
-const reqNewAddress = ref('')
-const reqAddressReason = ref('')
-const isSubmittingAddressChange = ref(false)
-const addressError = ref('')
-const reasonError = ref('')
+const handleLogoChange = async (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
 
-const openAddressChangeModal = () => {
-  if (isAddressPendingApproval.value) {
-    notyf.warning('Pengajuan perubahan alamat sebelumnya masih menunggu persetujuan tim Lapaqu.')
-    return
-  }
-  reqNewAddress.value = ''
-  reqAddressReason.value = ''
-  addressError.value = ''
-  reasonError.value = ''
-  isAddressChangeModalOpen.value = true
-}
-
-const handleSubmitAddressChange = async () => {
-  addressError.value = ''
-  reasonError.value = ''
-
-  if (!reqNewAddress.value.trim()) {
-    addressError.value = 'Alamat baru lengkap wajib diisi.'
+  if (!file.type.startsWith('image/')) {
+    notyf.error('Format file harus berupa gambar (PNG, JPG, WEBP, SVG).', 2000)
     return
   }
 
-  if (!reqAddressReason.value.trim()) {
-    reasonError.value = 'Alasan pengajuan perubahan alamat wajib diisi.'
+  if (file.size > 2 * 1024 * 1024) {
+    notyf.error('Ukuran gambar maksimal 2MB.', 2000)
     return
   }
 
-  try {
-    isSubmittingAddressChange.value = true
-    // Simulasi pengiriman pengajuan persetujuan ke server
-    await new Promise(r => setTimeout(r, 600))
+  const reader = new FileReader()
+  reader.onload = async (event) => {
+    const dataUrl = event.target?.result as string
+    restaurantLogo.value = dataUrl
+    localStorage.setItem('lapaqu_restaurant_logo', dataUrl)
 
-    isAddressPendingApproval.value = true
-    pendingNewAddress.value = reqNewAddress.value.trim()
-    pendingAddressReason.value = reqAddressReason.value.trim()
-
-    localStorage.setItem('lapaqu_address_change_pending', JSON.stringify({
-      pending: true,
-      newAddress: pendingNewAddress.value,
-      reason: pendingAddressReason.value,
-      submittedAt: new Date().toISOString(),
+    window.dispatchEvent(new CustomEvent('lapaqu:branding-updated', {
+      detail: {
+        logo: dataUrl,
+        tenantName: tenantName.value,
+        outletName: outletName.value,
+      }
     }))
 
-    isAddressChangeModalOpen.value = false
-    notyf.success('Pengajuan perubahan alamat berhasil dikirim dan sedang menunggu persetujuan!')
-  } catch (err) {
-    notyf.error('Gagal mengirim pengajuan perubahan alamat.')
-  } finally {
-    isSubmittingAddressChange.value = false
+    const targetOutletId = currentOutletId.value || (authStore.availableOutlets?.[0]?.id || '')
+    if (targetOutletId) {
+      try {
+        isUploadingLogo.value = true
+        const formData = new FormData()
+        formData.append('logo', file)
+        const res = await apiClient.post(`/outlets/${targetOutletId}/logo`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        })
+        if (res.data?.logo_url) {
+          restaurantLogo.value = res.data.logo_url
+          localStorage.setItem('lapaqu_restaurant_logo', res.data.logo_url)
+        }
+        notyf.success('Logo restoran berhasil diperbarui!', 2000)
+      } catch (err: any) {
+        try {
+          await apiClient.put(`/outlets/${targetOutletId}`, { logo_url: dataUrl })
+          notyf.success('Logo restoran berhasil disimpan!', 2000)
+        } catch {
+          notyf.success('Logo restoran tersimpan di browser!', 2000)
+        }
+      } finally {
+        isUploadingLogo.value = false
+      }
+    } else {
+      notyf.success('Logo restoran tersimpan di browser!', 2000)
+    }
   }
+  reader.readAsDataURL(file)
 }
+
+const handleRemoveLogo = async () => {
+  restaurantLogo.value = ''
+  localStorage.removeItem('lapaqu_restaurant_logo')
+  if (logoFileInputRef.value) logoFileInputRef.value.value = ''
+
+  window.dispatchEvent(new CustomEvent('lapaqu:branding-updated', {
+    detail: {
+      logo: '',
+      tenantName: tenantName.value,
+      outletName: outletName.value,
+    }
+  }))
+
+  const targetOutletId = currentOutletId.value || (authStore.availableOutlets?.[0]?.id || '')
+  if (targetOutletId) {
+    try {
+      await apiClient.put(`/outlets/${targetOutletId}`, { logo_url: '' })
+    } catch { }
+  }
+  notyf.success('Logo restoran berhasil dihapus.', 2000)
+}
+
+
 const outletPhone = ref('')
 const subdomain = ref(localStorage.getItem('lapaqu_tenant_name')?.toLowerCase().replace(/\s+/g, '') || '')
 const enableTax = ref(false)
@@ -487,14 +621,14 @@ const saveBrandingSettings = async (silent = false) => {
   }))
 
   const targetOutletId =
-    outletIdDisplay.value && outletIdDisplay.value !== '-'
-      ? outletIdDisplay.value
-      : (authStore.availableOutlets?.[0]?.id || '')
+    currentOutletId.value ||
+    (outletIdDisplay.value && outletIdDisplay.value !== '-' ? outletIdDisplay.value : '') ||
+    (authStore.availableOutlets?.[0]?.id || '')
 
   if (targetOutletId) {
     try {
       isSavingBranding.value = true
-      await apiClient.put(`/outlets/${targetOutletId}`, {
+      const res = await apiClient.put(`/outlets/${targetOutletId}`, {
         tenant_name: tenantName.value,
         name: outletName.value,
         slogan: outletSlogan.value,
@@ -506,20 +640,25 @@ const saveBrandingSettings = async (silent = false) => {
         enable_service_charge: enableServiceCharge.value,
         service_charge_percentage: Number(serviceChargeRate.value) || 0,
         table_timeout: Number(tableTimeoutMinutes.value) || 90,
+        logo_url: restaurantLogo.value || undefined,
       })
+      if (res.data?.outlet?.id) {
+        currentOutletId.value = res.data.outlet.id
+        localStorage.setItem('lapaqu_outlet_id', res.data.outlet.id)
+      }
       if (!silent) {
-        notyf.success('Pengaturan outlet & pajak berhasil disimpan ke server!')
+        notyf.success('Pengaturan outlet & pajak berhasil disimpan ke server!', 2000)
       }
     } catch (err: any) {
       if (!silent) {
-        notyf.error(err.response?.data?.message || 'Gagal menyimpan ke server')
+        notyf.error(err.response?.data?.message || 'Gagal menyimpan ke server', 2000)
       }
     } finally {
       isSavingBranding.value = false
     }
   } else {
     if (!silent) {
-      notyf.success('Tersimpan di browser')
+      notyf.success('Tersimpan di browser', 2000)
     }
   }
 }
@@ -535,23 +674,12 @@ const loadSavedSettings = () => {
       const parsed = JSON.parse(savedNotif)
       if (parsed.notifyOrderSound !== undefined) notifyOrderSound.value = parsed.notifyOrderSound
       if (parsed.notifyBrowserPush !== undefined) notifyBrowserPush.value = parsed.notifyBrowserPush
-      if (parsed.notifyWaiterBell !== undefined) notifyWaiterBell.value = parsed.notifyWaiterBell
-      if (parsed.notifyKdsVoid !== undefined) notifyKdsVoid.value = parsed.notifyKdsVoid
+          if (parsed.notifyKdsVoid !== undefined) notifyKdsVoid.value = parsed.notifyKdsVoid
       if (parsed.notifyWaDaily !== undefined) notifyWaDaily.value = parsed.notifyWaDaily
       if (parsed.waAdminNumber !== undefined) waAdminNumber.value = parsed.waAdminNumber
       if (parsed.notifyEmailWeekly !== undefined) notifyEmailWeekly.value = parsed.notifyEmailWeekly
     }
-    const savedAddressPending = localStorage.getItem('lapaqu_address_change_pending')
-    if (savedAddressPending) {
-      try {
-        const parsed = JSON.parse(savedAddressPending)
-        if (parsed.pending) {
-          isAddressPendingApproval.value = true
-          pendingNewAddress.value = parsed.newAddress || ''
-          pendingAddressReason.value = parsed.reason || ''
-        }
-      } catch (e) { }
-    }
+
 
     const savedBankPending = localStorage.getItem('lapaqu_bank_change_pending')
     if (savedBankPending) {
@@ -710,7 +838,7 @@ const handleSubmitChangeRequest = async () => {
       isGatewayConnected.value = true
     }
     requestSubmittedSuccess.value = true
-    notyf.success('Rekening pembayaran berhasil diperbarui!')
+    notyf.success('Rekening pembayaran berhasil diperbarui!', 2000)
     setTimeout(() => {
       isChangeModalOpen.value = false
     }, 1200)
@@ -826,9 +954,23 @@ const fetchOutletSettings = async () => {
   try {
     const res = await apiClient.get('/outlets')
     if (res.data?.outlets && res.data.outlets.length > 0) {
-      const activeId = outletIdDisplay.value
-      const outlet = res.data.outlets.find((o: any) => o.id === activeId) || res.data.outlets[0]
+      const currentSavedId = currentOutletId.value || localStorage.getItem('lapaqu_outlet_id')
+      const outlet = res.data.outlets.find((o: any) => o.id === currentSavedId)
+        || res.data.outlets.find((o: any) => o.is_main)
+        || res.data.outlets[0]
+
       if (outlet) {
+        currentOutletId.value = outlet.id
+        localStorage.setItem('lapaqu_outlet_id', outlet.id)
+
+        if (outlet.logo_url) {
+          restaurantLogo.value = outlet.logo_url
+          localStorage.setItem('lapaqu_restaurant_logo', outlet.logo_url)
+        } else if (outlet.tenant?.logo_url) {
+          restaurantLogo.value = outlet.tenant.logo_url
+          localStorage.setItem('lapaqu_restaurant_logo', outlet.tenant.logo_url)
+        }
+
         if (outlet.tenant?.name) {
           tenantName.value = outlet.tenant.name
           localStorage.setItem('lapaqu_tenant_name', outlet.tenant.name)
@@ -854,6 +996,15 @@ const fetchOutletSettings = async () => {
     console.error('Failed to load outlet settings from server:', e)
   }
 }
+
+
+watch([isOpen, activeTab, filteredNavItems], () => {
+  nextTick(() => {
+    updateNavIndicator()
+    const timers = [40, 100, 180, 300]
+    timers.forEach(t => setTimeout(updateNavIndicator, t))
+  })
+}, { immediate: true })
 
 // Auto-fetch live data when modal opens or tab switches
 watch([isOpen, activeTab], ([open, tab]) => {
@@ -883,7 +1034,7 @@ watch([isOpen, activeTab], ([open, tab]) => {
 
         <!-- MODAL CONTAINER (Responsive dengan breakpoint Tailwind: sm, md, lg, xl) -->
         <div
-          class="settings-modal-dialog modal-dialog-content relative w-full sm:w-[580px] md:w-[760px] lg:w-[940px] xl:w-[1044px] h-[92vh] sm:h-[680px] md:h-[740px] lg:h-[780px] xl:h-[829px] max-w-full max-h-[calc(100vh-24px)] bg-white dark:bg-[#1E293B] text-[#202224] dark:text-white rounded-2xl border border-slate-300 dark:border-slate-700 flex flex-col md:flex-row overflow-hidden z-10 font-sans transition-all duration-150 overscroll-contain"
+          class="settings-modal-dialog modal-dialog-content relative w-full sm:w-[580px] md:w-[760px] lg:w-[940px] xl:w-[1044px] h-[92vh] sm:h-[680px] md:h-[740px] lg:h-[780px] xl:h-[829px] max-w-full max-h-[calc(100vh-24px)] bg-white dark:bg-[#1E293B] text-[#202224] dark:text-white rounded-2xl border border-[#E2E8F0] dark:border-[#334155] flex flex-col md:flex-row overflow-hidden z-10 font-sans transition-all duration-150 overscroll-contain"
           role="dialog" aria-modal="true" @click.stop>
 
           <!-- LEFT SIDEBAR NAVIGATION (Sidebar Style & Font) -->
@@ -895,24 +1046,37 @@ watch([isOpen, activeTab], ([open, tab]) => {
 
             <!-- Section Label -->
             <div class="px-3 pt-2 pb-1.5">
-              <span class="text-xs font-semibold uppercase tracking-wider text-[#64748B] dark:text-[#94A3B8]">
+              <span class="text-xs font-bold uppercase tracking-wider text-[#64748B] dark:text-[#94A3B8]">
                 {{ t('sidebar.sectionSystem') }}
               </span>
             </div>
 
-            <!-- Nav Items (Matching AppSidebar navigation buttons) -->
-            <div class="flex-1 overflow-y-auto space-y-1 pr-1 custom-scroll">
-              <button v-for="item in filteredNavItems" :key="item.key" type="button" @click="setTab(item.key)" :class="[
-                'w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-colors duration-150 text-left cursor-pointer group',
-                activeTab === item.key
-                  ? 'bg-[#E2EAF8] dark:bg-[#334155] text-[#4880FF] dark:text-[#93C5FD]'
-                  : 'text-[#475569] dark:text-[#CBD5E1] hover:text-[#4880FF] dark:hover:text-white hover:bg-slate-100/60 dark:hover:bg-slate-800/50'
-              ]">
+            <!-- Nav Items (Exact AppSidebar navigation buttons & iOS Spring Pill) -->
+            <div ref="navContainerRef" class="flex-1 overflow-y-auto space-y-1 pr-1 custom-scroll relative select-none">
+              <!-- Shared iOS Spring-Physics Sliding Pill -->
+              <div v-show="isIndicatorVisible"
+                class="absolute rounded-xl bg-[#4880FF] shadow-sm pointer-events-none transition-all duration-350 ease-[cubic-bezier(0.34,1.3,0.64,1)] z-0"
+                :style="{
+                  top: `${indicatorTop}px`,
+                  left: `${indicatorLeft}px`,
+                  width: `${indicatorWidth}px`,
+                  height: `${indicatorHeight}px`,
+                }">
+              </div>
+
+              <button v-for="item in filteredNavItems" :key="item.key" type="button" @click="setTab(item.key)"
+                :data-active="activeTab === item.key ? 'true' : undefined"
+                :class="[
+                  'w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm transition-colors duration-150 text-left cursor-pointer group relative z-10',
+                  activeTab === item.key
+                    ? 'text-white font-bold'
+                    : 'text-[#475569] dark:text-[#CBD5E1] hover:text-slate-900 dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#334155] font-semibold'
+                ]">
                 <AppIcon :name="item.icon" :size="18" :class="[
                   'shrink-0 transition-colors duration-150',
                   activeTab === item.key
-                    ? 'text-[#4880FF] dark:text-[#93C5FD]'
-                    : 'text-[#64748B] dark:text-[#94A3B8] group-hover:text-[#4880FF] dark:group-hover:text-white'
+                    ? 'text-white'
+                    : 'text-[#64748B] dark:text-[#94A3B8] group-hover:text-slate-900 dark:group-hover:text-white'
                 ]" />
                 <span class="truncate">{{ item.label }}</span>
               </button>
@@ -941,49 +1105,90 @@ watch([isOpen, activeTab], ([open, tab]) => {
                 <h2 class="text-sm font-bold text-[#1E293B] dark:text-white mb-1">{{ t('settings.general.preferences')
                   }}</h2>
                 <div class="divide-y divide-[#E2E8F0] dark:divide-[#334155]/60 text-sm">
-                  <!-- Appearance -->
+                  <!-- Appearance (Tampilan Tema) -->
                   <div class="flex items-center justify-between py-4">
-                    <div class="text-sm font-normal text-[#1E293B] dark:text-white">{{ t('settings.general.appearance')
-                      }}</div>
+                    <div class="text-sm font-normal text-[#1E293B] dark:text-white">{{ t('settings.general.appearance') }}</div>
                     <div
-                      class="flex items-center bg-[#F1F5F9] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] p-0.5 rounded-lg">
-                      <button type="button" @click="setAppearance('system')" :class="[
-                        'p-1.5 rounded-md transition-all cursor-pointer flex items-center justify-center',
-                        themePreference === 'system' ? 'bg-white dark:bg-[#1E293B] shadow-xs text-[#202224] dark:text-white' : 'text-[#64748B] dark:text-[#94A3B8]'
-                      ]" :title="t('settings.general.themeSystem')">
-                        <AppIcon name="desktop_windows" :size="16" />
+                      class="relative flex items-center bg-[#F1F5F9] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] p-1 rounded-lg h-10">
+                      <button
+                        type="button"
+                        @click="setAppearance('system')"
+                        class="relative h-full px-2.5 rounded-md cursor-pointer flex items-center justify-center transition-colors z-10"
+                        :class="themePreference === 'system' ? 'text-[#202224] dark:text-white font-medium' : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#1E293B] dark:hover:text-white'"
+                        :title="t('settings.general.themeSystem')"
+                      >
+                        <Motion
+                          v-if="themePreference === 'system'"
+                          layoutId="activeThemePill"
+                          class="absolute inset-0 bg-white dark:bg-[#1E293B] rounded-md shadow-xs -z-10"
+                          :transition="{ type: 'spring', stiffness: 500, damping: 35 }"
+                        />
+                        <AppIcon name="desktop_windows" :size="18" />
                       </button>
-                      <button type="button" @click="setAppearance('light')" :class="[
-                        'p-1.5 rounded-md transition-all cursor-pointer flex items-center justify-center',
-                        themePreference === 'light' ? 'bg-white dark:bg-[#1E293B] shadow-xs text-[#202224] dark:text-white' : 'text-[#64748B] dark:text-[#94A3B8]'
-                      ]" :title="t('settings.general.themeLight')">
-                        <AppIcon name="light_mode" :size="16" />
+                      <button
+                        type="button"
+                        @click="setAppearance('light')"
+                        class="relative h-full px-2.5 rounded-md cursor-pointer flex items-center justify-center transition-colors z-10"
+                        :class="themePreference === 'light' ? 'text-[#202224] dark:text-white font-medium' : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#1E293B] dark:hover:text-white'"
+                        :title="t('settings.general.themeLight')"
+                      >
+                        <Motion
+                          v-if="themePreference === 'light'"
+                          layoutId="activeThemePill"
+                          class="absolute inset-0 bg-white dark:bg-[#1E293B] rounded-md shadow-xs -z-10"
+                          :transition="{ type: 'spring', stiffness: 500, damping: 35 }"
+                        />
+                        <AppIcon name="light_mode" :size="18" />
                       </button>
-                      <button type="button" @click="setAppearance('dark')" :class="[
-                        'p-1.5 rounded-md transition-all cursor-pointer flex items-center justify-center',
-                        themePreference === 'dark' ? 'bg-white dark:bg-[#1E293B] shadow-xs text-[#202224] dark:text-white' : 'text-[#64748B] dark:text-[#94A3B8]'
-                      ]" :title="t('settings.general.themeDark')">
-                        <AppIcon name="dark_mode" :size="16" />
+                      <button
+                        type="button"
+                        @click="setAppearance('dark')"
+                        class="relative h-full px-2.5 rounded-md cursor-pointer flex items-center justify-center transition-colors z-10"
+                        :class="themePreference === 'dark' ? 'text-[#202224] dark:text-white font-medium' : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#1E293B] dark:hover:text-white'"
+                        :title="t('settings.general.themeDark')"
+                      >
+                        <Motion
+                          v-if="themePreference === 'dark'"
+                          layoutId="activeThemePill"
+                          class="absolute inset-0 bg-white dark:bg-[#1E293B] rounded-md shadow-xs -z-10"
+                          :transition="{ type: 'spring', stiffness: 500, damping: 35 }"
+                        />
+                        <AppIcon name="dark_mode" :size="18" />
                       </button>
                     </div>
                   </div>
 
-                  <!-- Motion -->
+                  <!-- Motion (Animasi & Gerakan) -->
                   <div class="flex items-center justify-between py-4">
-                    <div class="text-sm font-normal text-[#1E293B] dark:text-white">{{ t('settings.general.motion') }}
-                    </div>
+                    <div class="text-sm font-normal text-[#1E293B] dark:text-white">{{ t('settings.general.motion') }}</div>
                     <div
-                      class="flex items-center bg-[#F1F5F9] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] p-0.5 rounded-lg text-sm">
-                      <button type="button" @click="setMotionPreference('system')" :class="[
-                        'px-3 py-1 rounded-md font-medium transition-all cursor-pointer',
-                        motionPreference === 'system' ? 'bg-white dark:bg-[#1E293B] shadow-xs text-[#202224] dark:text-white' : 'text-[#64748B] dark:text-[#94A3B8]'
-                      ]">
+                      class="relative flex items-center bg-[#F1F5F9] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] p-1 rounded-lg h-10 text-xs">
+                      <button
+                        type="button"
+                        @click="setMotionPreference('system')"
+                        class="relative h-full px-3.5 rounded-md font-medium cursor-pointer transition-colors z-10 flex items-center justify-center text-center"
+                        :class="motionPreference === 'system' ? 'text-[#202224] dark:text-white' : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#1E293B] dark:hover:text-white'"
+                      >
+                        <Motion
+                          v-if="motionPreference === 'system'"
+                          layoutId="activeMotionPill"
+                          class="absolute inset-0 bg-white dark:bg-[#1E293B] rounded-md shadow-xs -z-10"
+                          :transition="{ type: 'spring', stiffness: 500, damping: 35 }"
+                        />
                         {{ t('settings.general.motionSystem') }}
                       </button>
-                      <button type="button" @click="setMotionPreference('reduced')" :class="[
-                        'px-3 py-1 rounded-md font-medium transition-all cursor-pointer',
-                        motionPreference === 'reduced' ? 'bg-white dark:bg-[#1E293B] shadow-xs text-[#202224] dark:text-white' : 'text-[#64748B] dark:text-[#94A3B8]'
-                      ]">
+                      <button
+                        type="button"
+                        @click="setMotionPreference('reduced')"
+                        class="relative h-full px-3.5 rounded-md font-medium cursor-pointer transition-colors z-10 flex items-center justify-center text-center"
+                        :class="motionPreference === 'reduced' ? 'text-[#202224] dark:text-white' : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#1E293B] dark:hover:text-white'"
+                      >
+                        <Motion
+                          v-if="motionPreference === 'reduced'"
+                          layoutId="activeMotionPill"
+                          class="absolute inset-0 bg-white dark:bg-[#1E293B] rounded-md shadow-xs -z-10"
+                          :transition="{ type: 'spring', stiffness: 500, damping: 35 }"
+                        />
                         {{ t('settings.general.motionReduced') }}
                       </button>
                     </div>
@@ -1040,25 +1245,19 @@ watch([isOpen, activeTab], ([open, tab]) => {
                   <!-- Suara pesanan baru -->
                   <div class="py-4">
                     <AppToggle v-model="notifyOrderSound" :label="t('settings.notifications.soundOrder')"
-                      @change="saveNotificationSwitch" />
+                      @change="onToggleOrderSound" />
                   </div>
 
                   <!-- Browser Push -->
                   <div class="py-4">
                     <AppToggle v-model="notifyBrowserPush" :label="t('settings.notifications.browserPush')"
-                      @change="saveNotificationSwitch" />
-                  </div>
-
-                  <!-- Bel Panggilan Meja -->
-                  <div class="py-4">
-                    <AppToggle v-model="notifyWaiterBell" :label="t('settings.notifications.waiterBell')"
-                      @change="saveNotificationSwitch" />
+                      @change="onToggleBrowserPush" />
                   </div>
 
                   <!-- Alert Void KDS -->
                   <div class="py-4">
                     <AppToggle v-model="notifyKdsVoid" :label="t('settings.notifications.kdsVoid')"
-                      @change="saveNotificationSwitch" />
+                      @change="onToggleKdsVoid" />
                   </div>
 
                   <!-- WA Harian -->
@@ -1102,6 +1301,40 @@ watch([isOpen, activeTab], ([open, tab]) => {
               <div v-else-if="activeTab === 'account'" class="space-y-0">
                 <h2 class="text-sm font-bold text-[#1E293B] dark:text-white mb-1">{{ t('settings.account.title') }}</h2>
                 <div class="divide-y divide-[#E2E8F0] dark:divide-[#334155]/60 text-sm">
+                  <!-- Foto Profil (Persis Seperti Style Logo Restoran) -->
+                  <div class="flex flex-col sm:flex-row sm:items-center justify-between py-4 gap-4">
+                    <div class="flex-1 min-w-0 pr-4">
+                      <div class="text-sm font-normal text-[#1E293B] dark:text-white">{{ t('settings.account.avatar') }}</div>
+                      <div class="text-xs text-[#64748B] dark:text-[#94A3B8] mt-0.5 leading-relaxed">{{ t('settings.account.avatarDesc') }}</div>
+                    </div>
+                    <div class="w-full sm:w-[320px] shrink-0 flex items-center justify-end">
+                      <!-- Hidden file input for avatar -->
+                      <input ref="avatarFileInputRef" type="file" accept="image/png,image/jpeg,image/webp" class="hidden" @change="handleAvatarChange" />
+
+                      <!-- Avatar Image Kotak Rounded-lg (Persis seperti style Logo Restoran) -->
+                      <img
+                        v-if="userAvatar"
+                        :src="userAvatar"
+                        :alt="fullName || 'Foto Profil'"
+                        @click="avatarFileInputRef?.click()"
+                        :class="[
+                          'w-12 h-12 rounded-lg object-cover border border-[#E2E8F0] dark:border-[#334155] shadow-xs shrink-0 cursor-pointer hover:border-[#4880FF] hover:opacity-90 active:scale-95 transition-all',
+                          isUploadingAvatar ? 'animate-pulse opacity-50 pointer-events-none' : ''
+                        ]"
+                        />
+                      <div
+                        v-else
+                        @click="avatarFileInputRef?.click()"
+                        :class="[
+                          'w-12 h-12 rounded-lg bg-[#4880FF]/15 text-[#4880FF] flex items-center justify-center font-bold text-sm shrink-0 border border-[#4880FF]/25 cursor-pointer hover:bg-[#4880FF]/25 hover:border-[#4880FF] active:scale-95 transition-all',
+                          isUploadingAvatar ? 'animate-pulse opacity-50 pointer-events-none' : ''
+                        ]"
+                        >
+                        {{ (fullName || 'U').slice(0, 2).toUpperCase() }}
+                      </div>
+                    </div>
+                  </div>
+
                   <!-- Full name -->
                   <div class="flex flex-col sm:flex-row sm:items-center justify-between py-4 gap-4">
                     <div class="flex-1 min-w-0 pr-4">
@@ -1232,14 +1465,31 @@ watch([isOpen, activeTab], ([open, tab]) => {
                       <div class="text-xs text-[#64748B] dark:text-[#94A3B8] mt-0.5 leading-relaxed">{{
                         t('settings.branding.logoDesc') }}</div>
                     </div>
-                    <div class="w-full sm:w-[320px] shrink-0 flex items-center justify-end gap-3">
+                    <div class="w-full sm:w-[320px] shrink-0 flex items-center justify-end">
+                      <!-- Hidden file input for logo -->
+                      <input ref="logoFileInputRef" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" class="hidden" @change="handleLogoChange" />
+
+                      <!-- Logo Image Kotak Rounded-lg -->
+                      <img
+                        v-if="restaurantLogo"
+                        :src="restaurantLogo"
+                        alt="Logo Restoran"
+                        @click="logoFileInputRef?.click()"
+                        :class="[
+                          'w-12 h-12 rounded-lg object-cover border border-[#E2E8F0] dark:border-[#334155] shadow-xs shrink-0 cursor-pointer hover:border-[#4880FF] hover:opacity-90 active:scale-95 transition-all',
+                          isUploadingLogo ? 'animate-pulse opacity-50 pointer-events-none' : ''
+                        ]"
+                        />
                       <div
-                        class="w-10 h-10 rounded-full bg-[#4880FF]/15 text-[#4880FF] flex items-center justify-center font-bold text-sm shrink-0">
+                        v-else
+                        @click="logoFileInputRef?.click()"
+                        :class="[
+                          'w-12 h-12 rounded-lg bg-[#4880FF]/15 text-[#4880FF] flex items-center justify-center font-bold text-sm shrink-0 border border-[#4880FF]/25 cursor-pointer hover:bg-[#4880FF]/25 hover:border-[#4880FF] active:scale-95 transition-all',
+                          isUploadingLogo ? 'animate-pulse opacity-50 pointer-events-none' : ''
+                        ]"
+                        >
                         {{ (tenantName || outletName || 'LQ').slice(0, 2).toUpperCase() }}
                       </div>
-                      <AppButton variant="secondary" size="sm">
-                        {{ t('settings.branding.changeLogo') }}
-                      </AppButton>
                     </div>
                   </div>
 
@@ -1300,54 +1550,20 @@ watch([isOpen, activeTab], ([open, tab]) => {
                     </div>
                   </div>
 
-                  <!-- Alamat Lengkap Outlet (Pengajuan Perubahan & Persetujuan) -->
+                  <!-- Alamat Lengkap Outlet (Fixed Size Textarea di Sisi Kanan) -->
                   <div class="flex flex-col sm:flex-row sm:items-start justify-between py-4 gap-4">
                     <div class="flex-1 min-w-0 pr-4">
-                      <div class="text-sm font-normal text-[#1E293B] dark:text-white">{{ t('settings.branding.address')
-                        }}</div>
-                      <div class="text-xs text-[#64748B] dark:text-[#94A3B8] mt-1 leading-relaxed break-words">
-                        {{ outletAddress || 'Jl. Senopati No. 45, Kebayoran Baru, Jakarta Selatan' }}
-                      </div>
-
-                      <!-- Status Notifikasi jika sedang Menunggu Persetujuan -->
-                      <div v-if="isAddressPendingApproval"
-                        class="mt-2.5 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/25 text-xs text-amber-700 dark:text-amber-300 flex items-start gap-2">
-                        <svg class="w-4 h-4 text-amber-600 dark:text-amber-400 animate-spin shrink-0 mt-0.5"
-                          viewBox="0 0 24 24" fill="none">
-                          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
-                          </circle>
-                          <path class="opacity-75" fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
-                          </path>
-                        </svg>
-                        <div>
-                          <div class="font-bold">{{ t('settings.branding.pendingApprovalReview') }}</div>
-                          <div class="mt-0.5 text-amber-600/90 dark:text-amber-300/90">
-                            {{ t('settings.branding.pendingApprovalDesc') }} <span
-                              class="font-medium text-amber-900 dark:text-amber-100">"{{ pendingNewAddress }}"</span>.
-                          </div>
-                        </div>
-                      </div>
+                      <div class="text-sm font-normal text-[#1E293B] dark:text-white">{{ t('settings.branding.address') }}</div>
+                      <div class="text-xs text-[#64748B] dark:text-[#94A3B8] mt-0.5 leading-relaxed">{{ t('settings.branding.addressDesc') }}</div>
                     </div>
-
-                    <div class="w-full sm:w-[320px] shrink-0 flex sm:justify-end pt-0.5">
-                      <!-- Tombol Menunggu Persetujuan (Disabled dengan Animasi Putar) -->
-                      <button v-if="isAddressPendingApproval" type="button" disabled
-                        class="px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-300/60 dark:border-amber-700/60 flex items-center gap-2 cursor-not-allowed opacity-90 shadow-2xs">
-                        <svg class="w-3.5 h-3.5 animate-spin shrink-0" viewBox="0 0 24 24" fill="none">
-                          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
-                          </circle>
-                          <path class="opacity-75" fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
-                          </path>
-                        </svg>
-                        <span>{{ t('settings.branding.pendingApprovalBtn') }}</span>
-                      </button>
-
-                      <!-- Tombol Ajukan Perubahan jika belum mengajukan -->
-                      <AppButton v-else variant="secondary" size="sm" @click="openAddressChangeModal">
-                        {{ t('settings.branding.requestAddressChange') }}
-                      </AppButton>
+                    <div class="w-full sm:w-[320px] shrink-0">
+                      <textarea
+                        v-model="outletAddress"
+                        rows="3"
+                        :placeholder="t('settings.branding.addressPlaceholder')"
+                        @blur="saveBrandingSettings(false)"
+                        class="w-full h-20 px-3.5 py-2.5 rounded-lg border border-[#E2E8F0] dark:border-[#334155] bg-white dark:bg-[#0F172A] text-sm text-[#202224] dark:text-white resize-none focus:outline-none focus:border-[#4880FF] leading-relaxed custom-scroll"
+                      />
                     </div>
                   </div>
 
@@ -1504,7 +1720,7 @@ watch([isOpen, activeTab], ([open, tab]) => {
                       <div v-if="bankName && accountNumber" class="text-[#64748B] dark:text-[#94A3B8] mt-0.5">{{ bankName }} • {{ accountNumber }} • a.n.
                         {{ accountHolder }}</div>
                       <div v-else class="text-xs text-[#94A3B8] mt-0.5">
-                        Belum ada rekening bank terdaftar
+                        {{ t('settings.payment.noBankAccount') }}
                       </div>
                       <!-- Status Notifikasi jika Rekening Menunggu Persetujuan -->
                       <div v-if="isBankPendingApproval"
@@ -1535,7 +1751,7 @@ watch([isOpen, activeTab], ([open, tab]) => {
                       </button>
 
                       <!-- Tombol Hubungkan / Ubah Rekening jika belum pending -->
-                      <AppButton v-else variant="secondary" size="sm" @click="openChangeModal">
+                      <AppButton v-else variant="primary" size="sm" @click="openChangeModal">
                         {{ bankName && accountNumber ? t('settings.payment.requestBankChange') : 'Hubungkan Rekening' }}
                       </AppButton>
                     </div>
@@ -1595,7 +1811,7 @@ watch([isOpen, activeTab], ([open, tab]) => {
                   ]">
                     <!-- Badge Aktif (Hanya jika aktif) -->
                     <div v-if="currentPlanCode === 'basic'" class="absolute -top-3 right-5">
-                      <span class="bg-[#4880FF] text-white text-[10px] font-bold px-3 py-0.5 rounded-full shadow-xs">
+                      <span class="bg-[#4880FF] text-white text-xs font-bold px-3 py-0.5 rounded-full shadow-xs">
                         {{ t('settings.billing.activePlan') }}
                       </span>
                     </div>
@@ -1617,18 +1833,15 @@ watch([isOpen, activeTab], ([open, tab]) => {
                       <div class="grid grid-cols-3 gap-2 my-4 py-2 text-center">
                         <div>
                           <div class="text-sm font-bold text-[#1E293B] dark:text-white">1</div>
-                          <div class="text-[11px] text-[#64748B] dark:text-[#94A3B8]">{{ t('settings.billing.outlet') }}
-                          </div>
+                          <div class="text-xs text-[#64748B] dark:text-[#94A3B8]">{{ t('settings.billing.colOutlet') }}</div>
                         </div>
                         <div>
-                          <div class="text-sm font-bold text-[#1E293B] dark:text-white">10</div>
-                          <div class="text-[11px] text-[#64748B] dark:text-[#94A3B8]">{{ t('settings.billing.tablesQr')
-                            }}</div>
+                          <div class="text-sm font-bold text-[#1E293B] dark:text-white">20</div>
+                          <div class="text-xs text-[#64748B] dark:text-[#94A3B8]">{{ t('settings.billing.colTables') }}</div>
                         </div>
                         <div>
                           <div class="text-sm font-bold text-[#1E293B] dark:text-white">3</div>
-                          <div class="text-[11px] text-[#64748B] dark:text-[#94A3B8]">{{
-                            t('settings.billing.staffUsers') }}</div>
+                          <div class="text-xs text-[#64748B] dark:text-[#94A3B8]">{{ t('settings.billing.colStaff') }}</div>
                         </div>
                       </div>
 
@@ -1682,7 +1895,7 @@ watch([isOpen, activeTab], ([open, tab]) => {
                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                           </svg>
-                          <span>Kitchen Display System (KDS) dapur realtime</span>
+                          <span>{{ t('settings.billing.featKdsRealtime') }}</span>
                         </div>
                         <div class="flex items-start gap-2 text-xs"
                           :class="currentPlanCode === 'basic' ? 'text-[#1E293B] dark:text-slate-200' : 'text-[#64748B] dark:text-[#94A3B8]'">
@@ -1691,7 +1904,7 @@ watch([isOpen, activeTab], ([open, tab]) => {
                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                           </svg>
-                          <span>Hingga 3 akun staf kasir & dapur</span>
+                          <span>{{ t('settings.billing.featStaffLimit') }}</span>
                         </div>
                         <div class="flex items-start gap-2 text-xs"
                           :class="currentPlanCode === 'basic' ? 'text-[#1E293B] dark:text-slate-200' : 'text-[#64748B] dark:text-[#94A3B8]'">
@@ -1700,7 +1913,7 @@ watch([isOpen, activeTab], ([open, tab]) => {
                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                           </svg>
-                          <span>Laporan penjualan dasar harian & mingguan</span>
+                          <span>{{ t('settings.billing.featBasicReports') }}</span>
                         </div>
                         <div class="flex items-start gap-2 text-xs"
                           :class="currentPlanCode === 'basic' ? 'text-[#1E293B] dark:text-slate-200' : 'text-[#64748B] dark:text-[#94A3B8]'">
@@ -1709,7 +1922,7 @@ watch([isOpen, activeTab], ([open, tab]) => {
                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                           </svg>
-                          <span>Kustomisasi tarif pajak PB1 & biaya layanan</span>
+                          <span>{{ t('settings.billing.featCustomTaxService') }}</span>
                         </div>
                       </div>
                     </div>
@@ -1724,7 +1937,7 @@ watch([isOpen, activeTab], ([open, tab]) => {
                   ]">
                     <!-- Badge Aktif (Hanya jika aktif) -->
                     <div v-if="currentPlanCode === 'pro'" class="absolute -top-3 right-5">
-                      <span class="bg-[#4880FF] text-white text-[10px] font-bold px-3 py-0.5 rounded-full shadow-xs">
+                      <span class="bg-[#4880FF] text-white text-xs font-bold px-3 py-0.5 rounded-full shadow-xs">
                         {{ t('settings.billing.activePlan') }}
                       </span>
                     </div>
@@ -1732,7 +1945,7 @@ watch([isOpen, activeTab], ([open, tab]) => {
                     <div>
                       <h3 class="text-xl font-bold tracking-tight text-[#1E293B] dark:text-white">Pro Plan</h3>
                       <p class="text-xs text-[#64748B] dark:text-[#94A3B8] mt-1">
-                        Untuk bisnis kuliner berkembang & ekspansi multi-cabang
+                        {{ t('settings.billing.proDesc') }}
                       </p>
 
                       <!-- Price -->
@@ -1752,8 +1965,7 @@ watch([isOpen, activeTab], ([open, tab]) => {
                                 d="M18.178 8c5.096 0 5.096 8 0 8-5.095 0-7.133-8-12.356-8-5.096 0-5.096 8 0 8 5.223 0 7.261-8 12.356-8z" />
                             </svg>
                           </div>
-                          <div class="text-[11px] text-[#64748B] dark:text-[#94A3B8]">{{ t('settings.billing.outlet') }}
-                          </div>
+                          <div class="text-xs text-[#64748B] dark:text-[#94A3B8]">{{ t('settings.billing.proOutlet') }}</div>
                         </div>
                         <div>
                           <div class="flex items-center justify-center h-5">
@@ -1763,8 +1975,7 @@ watch([isOpen, activeTab], ([open, tab]) => {
                                 d="M18.178 8c5.096 0 5.096 8 0 8-5.095 0-7.133-8-12.356-8-5.096 0-5.096 8 0 8 5.223 0 7.261-8 12.356-8z" />
                             </svg>
                           </div>
-                          <div class="text-[11px] text-[#64748B] dark:text-[#94A3B8]">{{ t('settings.billing.tablesQr')
-                            }}</div>
+                          <div class="text-xs text-[#64748B] dark:text-[#94A3B8]">{{ t('settings.billing.proTables') }}</div>
                         </div>
                         <div>
                           <div class="flex items-center justify-center h-5">
@@ -1774,8 +1985,7 @@ watch([isOpen, activeTab], ([open, tab]) => {
                                 d="M18.178 8c5.096 0 5.096 8 0 8-5.095 0-7.133-8-12.356-8-5.096 0-5.096 8 0 8 5.223 0 7.261-8 12.356-8z" />
                             </svg>
                           </div>
-                          <div class="text-[11px] text-[#64748B] dark:text-[#94A3B8]">{{
-                            t('settings.billing.staffUsers') }}</div>
+                          <div class="text-xs text-[#64748B] dark:text-[#94A3B8]">{{ t('settings.billing.proStaff') }}</div>
                         </div>
                       </div>
 
@@ -1908,57 +2118,7 @@ watch([isOpen, activeTab], ([open, tab]) => {
       </div>
     </Transition>
 
-    <!-- SUB-MODAL: PENGAJUAN PERUBAHAN ALAMAT OUTLET -->
-    <AppModal v-model="isAddressChangeModalOpen" :title="t('settings.submodal.addressTitle')" maxWidth="md">
-      <div class="space-y-4 text-sm">
-        <p class="text-xs text-[#64748B] dark:text-[#94A3B8] leading-relaxed">
-          {{ t('settings.submodal.addressDesc') }}
-        </p>
 
-        <!-- Alamat Saat Ini -->
-        <div>
-          <label class="block mb-1 text-xs font-normal text-[#64748B] dark:text-[#94A3B8]">{{
-            t('settings.submodal.addressCurrent') }}</label>
-          <div
-            class="p-3 rounded-lg bg-[#F8FAFC] dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] text-xs text-[#64748B] dark:text-[#94A3B8] leading-relaxed">
-            {{ outletAddress || 'Jl. Senopati No. 45, Kebayoran Baru, Jakarta Selatan' }}
-          </div>
-        </div>
-
-        <!-- Alamat Baru (Placeholder Langsung Alamat, Jangan Contoh: blabla) -->
-        <div>
-          <div class="flex items-center justify-between mb-1">
-            <label class="text-xs font-normal text-[#1E293B] dark:text-white">{{ t('settings.submodal.addressNew') }}
-              <span class="text-rose-500">*</span></label>
-          </div>
-          <textarea v-model="reqNewAddress" rows="2"
-            placeholder="Jl. Senopati No. 45, RT 02 / RW 03, Kebayoran Baru, Jakarta Selatan, DKI Jakarta 12190"
-            class="w-full px-3 py-2 rounded-lg border border-[#E2E8F0] dark:border-[#334155] bg-white dark:bg-[#0F172A] text-sm text-[#202224] dark:text-white resize-y focus:outline-none focus:border-[#4880FF]" />
-          <div v-if="addressError" class="text-xs text-[#FD5454] mt-1 font-medium">{{ addressError }}</div>
-        </div>
-
-        <!-- Alasan Perubahan Alamat (Wajib Diisi!) -->
-        <div>
-          <div class="flex items-center justify-between mb-1">
-            <label class="text-xs font-normal text-[#1E293B] dark:text-white">{{ t('settings.submodal.addressReason') }}
-              <span class="text-rose-500">*</span></label>
-            <span class="text-[11px] text-rose-500 font-medium">{{ t('settings.submodal.addressRequired') }}</span>
-          </div>
-          <textarea v-model="reqAddressReason" rows="2"
-            placeholder="Relokasi gedung operasional atau pemindahan lokasi cabang restoran"
-            class="w-full px-3 py-2 rounded-lg border border-[#E2E8F0] dark:border-[#334155] bg-white dark:bg-[#0F172A] text-sm text-[#202224] dark:text-white resize-none focus:outline-none focus:border-[#4880FF]" />
-          <div v-if="reasonError" class="text-xs text-[#FD5454] mt-1 font-medium">{{ reasonError }}</div>
-        </div>
-      </div>
-
-      <template #footer>
-        <AppButton variant="secondary" size="sm" @click="isAddressChangeModalOpen = false">{{
-          t('settings.account.cancel') }}</AppButton>
-        <AppButton variant="primary" size="sm" :loading="isSubmittingAddressChange" @click="handleSubmitAddressChange">
-          {{ t('settings.submodal.submitRequest') }}
-        </AppButton>
-      </template>
-    </AppModal>
 
     <!-- SUB-MODAL: AJUKAN GANTI REKENING -->
     <AppModal v-model="isChangeModalOpen" :title="t('settings.submodal.bankTitle')" maxWidth="md">
@@ -1988,7 +2148,7 @@ watch([isOpen, activeTab], ([open, tab]) => {
           <div class="flex items-center justify-between mb-1">
             <label class="font-normal text-[#1E293B] dark:text-white">{{ t('settings.submodal.bankReason') }} <span
                 class="text-rose-500">*</span></label>
-            <span class="text-[11px] text-rose-500 font-medium">{{ t('settings.submodal.addressRequired') }}</span>
+            <span class="text-xs text-rose-500 font-medium">{{ t('settings.submodal.addressRequired') }}</span>
           </div>
           <textarea v-model="reqNotes" rows="2" placeholder="Pembaruan rekening operasional resmi outlet restoran"
             class="w-full px-3 py-2 rounded-lg border border-[#E2E8F0] dark:border-[#334155] bg-white dark:bg-[#0F172A] text-[#202224] dark:text-white resize-none focus:outline-none focus:border-[#4880FF]" />
@@ -2016,6 +2176,8 @@ watch([isOpen, activeTab], ([open, tab]) => {
         <AppButton variant="danger" size="md" @click="handleLogout">{{ t('settings.submodal.yesLogout') }}</AppButton>
       </template>
     </AppModal>
+
+
   </Teleport>
 </template>
 

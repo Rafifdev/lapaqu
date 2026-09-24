@@ -167,7 +167,7 @@ const handlePairing = async () => {
 
 <template>
   <!-- Form Container: Lebar maks 512px persis seperti Register & Login -->
-  <div class="w-full max-w-[512px] mx-auto flex flex-col justify-center">
+  <div class="w-full max-w-[512px] mx-auto flex flex-col justify-center animate-outlet-fade">
 
     <!-- Header: Judul & Keterangan (Left-aligned persis seperti OTP Register) -->
     <div class="text-left shrink-0 mb-0">
@@ -226,7 +226,8 @@ const handlePairing = async () => {
           <input v-for="(digit, idx) in otpDigits" :key="idx"
             :ref="(el) => { if (el) inputRefs[idx] = el as HTMLInputElement }" :id="`otp-${idx}`" type="text"
             maxlength="1" :value="digit" @input="handleInput(idx, $event)" @keydown="handleKeyDown(idx, $event)"
-            class="w-10 h-14 min-[360px]:w-11 min-[360px]:h-16 min-[390px]:w-12 min-[390px]:h-[68px] min-[480px]:w-14 min-[480px]:h-20 sm:w-18 sm:h-22 text-center text-lg min-[360px]:text-xl min-[390px]:text-2xl sm:text-3xl font-black font-mono uppercase rounded-lg min-[360px]:rounded-xl sm:rounded-2xl bg-white dark:bg-[#273142] text-[#1E293B] dark:text-white transition-all duration-150 focus:outline-none shadow-sm"
+            :style="{ animationDelay: `${idx * 40}ms` }"
+            class="animate-otp-pop w-10 h-14 min-[360px]:w-11 min-[360px]:h-16 min-[390px]:w-12 min-[390px]:h-[68px] min-[480px]:w-14 min-[480px]:h-20 sm:w-18 sm:h-22 text-center text-lg min-[360px]:text-xl min-[390px]:text-2xl sm:text-3xl font-black font-mono uppercase rounded-lg min-[360px]:rounded-xl sm:rounded-2xl bg-white dark:bg-[#273142] text-[#1E293B] dark:text-white transition-all duration-150 focus:outline-none shadow-sm"
             :class="[
               (codeError || isPairingFailed)
                 ? 'border-2 border-[#EC4453] dark:border-[#EC4453] focus:ring-2 focus:ring-[#EC4453]/20'
@@ -277,6 +278,44 @@ const handlePairing = async () => {
 </template>
 
 <style scoped>
+/* Smooth Entrance Animations for Outlet Login */
+@keyframes outletFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes otpPopIn {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-outlet-fade {
+  animation: outletFadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-otp-pop {
+  animation: otpPopIn 0.26s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-outlet-fade,
+  .animate-otp-pop {
+    animation: none !important;
+  }
+}
+
 /* Chrome, Safari, Edge, Opera: hide spin buttons for numeric if any */
 input::-webkit-outer-spin-button,
 input::-webkit-inner-spin-button {

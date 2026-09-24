@@ -113,14 +113,12 @@ const checkOrderStatusUpdate = async () => {
       orders = [res.data.order]
     }
 
-    // Filter hanya pesanan yang valid (sudah dibayar & minimal confirmed)
-    const validStatuses = ['confirmed', 'processing', 'preparing', 'cooking', 'ready', 'completed']
+    // Filter seluruh pesanan aktif (termasuk pending_payment menunggu kasir/qris hingga selesai)
+    const validStatuses = ['pending_payment', 'awaiting_payment', 'confirmed', 'processing', 'preparing', 'cooking', 'ready', 'completed']
     orders = orders.filter((o: any) =>
       validStatuses.includes(o.status) &&
-      o.payment_status === 'paid' &&
       o.status !== 'cancelled' &&
-      o.status !== 'expired' &&
-      o.status !== 'pending_payment'
+      o.status !== 'expired'
     )
 
     const fp = buildFingerprint(orders)
@@ -329,9 +327,7 @@ const isMenuPage = computed(() => route.name === 'customer-menu' || route.path =
 
       <!-- Main Content Page -->
       <main :class="route.name === 'customer-va-instructions' ? 'p-0 flex-1' : 'flex-1 p-4 pb-6'">
-        <router-view v-slot="{ Component, route: customerRoute }">
-          <AppPageTransition :component="Component" :route="customerRoute" />
-        </router-view>
+        <router-view />
       </main>
 
       <!-- Floating Cart Bar (ShopeeFood / GrabFood style) -->

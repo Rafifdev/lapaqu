@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onActivated, watch } from 'vue'
 import { Download } from 'lucide-vue-next'
 import { useFormat } from '@/composables/useFormat'
 import { useTheme } from '@/composables/useTheme'
@@ -174,7 +174,16 @@ watch(selectedPeriod, async (newVal) => {
 })
 
 onMounted(() => {
-  fetchReportData(true)
+  if (reportItems.value.length > 0) {
+    isLoading.value = false
+    fetchReportData(false)
+  } else {
+    fetchReportData(true)
+  }
+})
+
+onActivated(() => {
+  fetchReportData(false)
 })
 
 // Badge Variant helper

@@ -279,14 +279,14 @@ const handleConfirmPrint = () => {
               <input
                 type="date"
                 v-model="startDate"
-                class="min-w-0 w-full bg-transparent border-0 text-xs sm:text-[13px] font-semibold text-[#1E293B] dark:text-white focus:outline-none cursor-pointer [color-scheme:light] dark:[color-scheme:dark]"
+                class="min-w-0 w-full bg-transparent border-0 text-xs sm:text-sm font-semibold text-[#1E293B] dark:text-white focus:outline-none cursor-pointer [color-scheme:light] dark:[color-scheme:dark]"
               />
               <span class="text-[#94A3B8] text-xs font-bold px-0.5 shrink-0">-</span>
               <input
                 type="date"
                 v-model="endDate"
                 :min="startDate || undefined"
-                class="min-w-0 w-full bg-transparent border-0 text-xs sm:text-[13px] font-semibold text-[#1E293B] dark:text-white focus:outline-none cursor-pointer [color-scheme:light] dark:[color-scheme:dark]"
+                class="min-w-0 w-full bg-transparent border-0 text-xs sm:text-sm font-semibold text-[#1E293B] dark:text-white focus:outline-none cursor-pointer [color-scheme:light] dark:[color-scheme:dark]"
               />
               <button
                 v-if="startDate || endDate"
@@ -390,7 +390,7 @@ const handleConfirmPrint = () => {
             Whoops! :(
           </h3>
           <p
-            class="text-xs sm:text-sm font-medium text-[#64748B] dark:text-[#94A3B8] mt-1.5 max-w-[280px] sm:max-w-xs md:max-w-sm leading-relaxed">
+            class="text-sm font-medium text-[#64748B] dark:text-[#94A3B8] mt-1.5 max-w-[280px] sm:max-w-xs md:max-w-sm leading-relaxed">
             Belum ada riwayat transaksi saat ini
           </p>
         </div>
@@ -404,7 +404,7 @@ const handleConfirmPrint = () => {
       <div v-if="selectedOrder" class="space-y-4 py-1 text-xs">
         <div class="text-center pb-3 border-b border-dashed border-[#E2E8F0] dark:border-[#334155]">
           <h3 class="text-base font-bold text-[#1E293B] dark:text-white">LAPAQU POS</h3>
-          <p class="text-[11px] text-[#64748B] dark:text-[#94A3B8]">Struk Resmi Pembayaran Kasir</p>
+          <p class="text-xs text-[#64748B] dark:text-[#94A3B8]">Struk Resmi Pembayaran Kasir</p>
           <p class="font-mono text-xs font-bold text-[#4880FF] mt-1">{{ selectedOrder.orderNumber }}</p>
         </div>
 

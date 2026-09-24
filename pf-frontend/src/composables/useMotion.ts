@@ -33,8 +33,10 @@ export function applyMotion() {
   const root = document.documentElement
   if (isReducedMotion.value) {
     root.classList.add('reduce-motion')
+    document.body?.classList.add('reduce-motion')
   } else {
     root.classList.remove('reduce-motion')
+    document.body?.classList.remove('reduce-motion')
   }
 }
 

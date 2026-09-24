@@ -45,6 +45,17 @@ class OrderStatusUpdatedEvent implements ShouldBroadcastNow
             'status' => $this->order->status,
             'payment_status' => $this->order->payment_status,
             'table_id' => $this->order->table_id,
+            'order' => [
+                'id' => $this->order->id,
+                'order_number' => $this->order->order_number,
+                'order_type' => $this->order->order_type,
+                'status' => $this->order->status,
+                'payment_status' => $this->order->payment_status,
+                'total_amount' => $this->order->total_amount,
+                'customer_name' => $this->order->customer_name,
+                'table' => $this->order->table ? ['id' => $this->order->table->id, 'table_number' => $this->order->table->table_number] : null,
+                'created_at' => $this->order->created_at ? $this->order->created_at->toISOString() : now()->toISOString(),
+            ],
         ];
     }
 }

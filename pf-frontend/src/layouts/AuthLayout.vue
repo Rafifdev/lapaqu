@@ -160,9 +160,10 @@ const handleOutletLogin = () => {
 </script>
 
 <template>
-  <div class="w-full min-h-screen">
-    <!-- Dedicated Split-Screen Layout for Login & Register (Ada Div Biru di Sisi Kanan) -->
-    <div v-if="isAuthSplitPage" key="auth-split-layout"
+  <div class="w-full min-h-screen overflow-hidden">
+    <Transition name="auth-layout" mode="out-in">
+      <!-- Dedicated Split-Screen Layout for Login & Register (Ada Div Biru di Sisi Kanan) -->
+      <div v-if="isAuthSplitPage" key="auth-split-layout"
       class="h-screen w-full bg-white dark:bg-[#1B2431] flex flex-col justify-between p-6 md:p-8 transition-colors overflow-hidden">
 
     <!-- Main Content Container: Left Form + Right Hero Card -->
@@ -251,8 +252,8 @@ const handleOutletLogin = () => {
 
               <!-- Outlet Button -->
               <button type="button" @click="handleOutletLogin"
-                class="h-11 px-2 sm:px-3 rounded-xl bg-white dark:bg-[#273142] border border-[#E2E8F0] dark:border-[#334155] hover:bg-[#F8FAFC] dark:hover:bg-[#334155] text-sm font-bold text-[#1E293B] dark:text-white flex items-center justify-center gap-1.5 sm:gap-2 transition-all cursor-pointer">
-                <Store class="w-4.5 h-4.5 sm:w-5 sm:h-5 shrink-0 text-[#1E293B] dark:text-white" />
+                class="group h-11 px-2 sm:px-3 rounded-xl bg-white dark:bg-[#273142] border border-[#E2E8F0] dark:border-[#334155] hover:bg-[#F8FAFC] dark:hover:bg-[#334155] hover:border-[#4880FF]/40 hover:text-[#4880FF] active:scale-95 text-sm font-bold text-[#1E293B] dark:text-white flex items-center justify-center gap-1.5 sm:gap-2 transition-all duration-200 cursor-pointer shadow-xs hover:shadow-sm">
+                <Store class="w-4.5 h-4.5 sm:w-5 sm:h-5 shrink-0 text-[#1E293B] dark:text-white group-hover:text-[#4880FF] group-hover:scale-110 transition-all duration-200" />
                 <span>Outlet</span>
               </button>
             </template>
@@ -470,6 +471,7 @@ const handleOutletLogin = () => {
       </router-view>
     </div>
   </div>
+  </Transition>
   
     <!-- Alert Modal: Konfirmasi Keluar / Ganti Outlet (Persis seperti modal logout yang sudah ada di POS) -->
     <AppModal v-model="isLogoutModalOpen" title="Konfirmasi Keluar Outlet" maxWidth="sm">
@@ -499,8 +501,28 @@ const handleOutletLogin = () => {
 </template>
 
 <style scoped>
-/* Smooth transition between auth forms */
-/* Auth forms now use unified AppPageTransition */
+/* Smooth transition between auth layouts (Split <-> Outlet <-> Centered) */
+.auth-layout-enter-active,
+.auth-layout-leave-active {
+  transition: opacity 0.24s cubic-bezier(0.16, 1, 0.3, 1), transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.auth-layout-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.auth-layout-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-layout-enter-active,
+  .auth-layout-leave-active {
+    transition: none !important;
+  }
+}
 
 /* Hide scrollbar for Chrome, Safari and Opera */
 .no-scrollbar::-webkit-scrollbar {

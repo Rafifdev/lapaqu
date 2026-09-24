@@ -2,6 +2,7 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import AppIcon from '@/components/ui/AppIcon.vue'
+import lapaquLogo from '@/assets/brand_logo/lapaqu-logo.png'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppDropdownMotion from '@/components/ui/AppDropdownMotion.vue'
 import AppButton from '@/components/ui/AppButton.vue'
@@ -9,6 +10,9 @@ import { useAuthStore } from '@/stores/auth'
 import apiClient from '@/services/api'
 import { useSettingsModal } from '@/composables/useSettingsModal'
 import { useDashboardI18n } from '@/i18n'
+import avatarManager from '@/assets/roles/avatar-manager.jpg'
+import avatarCashier from '@/assets/roles/avatar-cashier.jpg'
+import avatarKitchen from '@/assets/roles/avatar-kitchen.jpg'
 
 interface Props {
   collapsed?: boolean
@@ -25,7 +29,21 @@ const authStore = useAuthStore()
 const outletName = ref(localStorage.getItem('lapaqu_outlet_name') || (authStore.currentUser as any)?.outlet?.name || '')
 const tenantName = ref(localStorage.getItem('lapaqu_tenant_name') || (authStore.currentUser as any)?.tenant?.name || 'Lapaqu')
 
+const customAvatarUrl = ref(localStorage.getItem('lapaqu_custom_avatar') || '')
+
+const userAvatar = computed(() => {
+  if (customAvatarUrl.value) return customAvatarUrl.value
+  if (authStore.currentUser?.avatarUrl) return authStore.currentUser.avatarUrl
+  const role = authStore.currentUser?.role
+  if (role === 'kasir') return avatarCashier
+  if (role === 'kitchen_staff') return avatarKitchen
+  return avatarManager
+})
+
 onMounted(async () => {
+  window.addEventListener('lapaqu:avatar-updated', (e: any) => {
+    if (e.detail?.avatarUrl) customAvatarUrl.value = e.detail.avatarUrl
+  })
   try {
     const res = await apiClient.get('/dashboard/overview', { timeout: 3000 })
     if (res.data?.outlet?.name) {
@@ -40,9 +58,12 @@ onMounted(async () => {
     // fallback
   }
 })
+const restaurantLogo = ref(localStorage.getItem('lapaqu_restaurant_logo') || '')
+
 const handleBrandingUpdated = (e: any) => {
   if (e.detail?.tenantName) tenantName.value = e.detail.tenantName
   if (e.detail?.outletName) outletName.value = e.detail.outletName
+  if (e.detail?.logo !== undefined) restaurantLogo.value = e.detail.logo
 }
 
 onMounted(() => {
@@ -252,16 +273,16 @@ const resetSidebarWidth = () => {
         'flex items-center gap-2.5 overflow-hidden py-1 transition-all duration-350 ease-[cubic-bezier(0.34,1.3,0.64,1)] flex-1 min-w-0',
         collapsed ? 'opacity-0 -translate-x-4 max-w-0 pointer-events-none' : 'opacity-100 translate-x-0'
       ]">
-        <img src="@/assets/brand_logo/lapaqu-logo.png" alt="Lapaqu"
-          class="w-9 h-9 sm:w-10 sm:h-10 object-contain shrink-0" />
+        <img :src="restaurantLogo || lapaquLogo" alt="Logo"
+          class="w-9 h-9 sm:w-10 sm:h-10 object-contain rounded-lg shrink-0" />
         <div class="flex flex-col min-w-0 flex-1 justify-center">
           <span
-            class="text-sm sm:text-[15px] font-semibold tracking-tight font-sans text-[#1E293B] dark:text-white leading-tight truncate"
+            class="text-sm sm:text-base font-bold tracking-tight font-sans text-[#1E293B] dark:text-white leading-tight truncate"
             :title="tenantName">
             {{ tenantName }}
           </span>
           <span
-            class="text-[10px] sm:text-[11px] font-semibold text-[#64748B] dark:text-[#94A3B8] leading-none mt-1 truncate"
+            class="text-xs sm:text-sm font-medium text-[#64748B] dark:text-[#94A3B8] leading-none mt-1 truncate"
             :title="outletName">
             {{ outletName }}
           </span>
@@ -270,7 +291,7 @@ const resetSidebarWidth = () => {
 
       <!-- Expand / Collapse Toggle Button (Claude PanelLeft Icon, positioned to the right of logo) -->
       <button type="button" @click="handleToggle"
-        class="w-9 h-9 rounded-xl flex items-center justify-center text-[#475569] dark:text-[#CBD5E1] hover:text-[#4880FF] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] transition-all duration-300 cursor-pointer shrink-0"
+        class="w-9 h-9 rounded-xl flex items-center justify-center text-[#475569] dark:text-[#CBD5E1] hover:text-slate-900 hover:bg-[#F1F5F9] dark:hover:bg-[#334155] transition-all duration-300 cursor-pointer shrink-0"
         :title="collapsed ? t('sidebar.expandSidebar') : t('sidebar.collapseSidebar')">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -286,7 +307,7 @@ const resetSidebarWidth = () => {
     <nav ref="navContainerRef" class="flex-1 min-h-0 py-2 px-2.5 space-y-1 relative overflow-y-auto overflow-x-hidden">
       <!-- Shared iOS Spring-Physics Sliding Pill -->
       <div v-show="isIndicatorVisible"
-        class="absolute rounded-xl bg-[#E2EAF8] dark:bg-[#334155] pointer-events-none transition-all duration-350 ease-[cubic-bezier(0.34,1.3,0.64,1)] z-0 overflow-hidden"
+        class="absolute rounded-xl bg-[#4880FF] shadow-sm pointer-events-none transition-all duration-350 ease-[cubic-bezier(0.34,1.3,0.64,1)] z-0"
         :style="{
           top: `${indicatorTop}px`,
           left: `${indicatorLeft}px`,
@@ -297,11 +318,11 @@ const resetSidebarWidth = () => {
 
       <!-- Main Dashboard -->
       <button type="button" @click="navigate('/dashboard')" :data-active="isRouteActive('/dashboard')" :class="[
-        'w-full flex items-center text-sm font-semibold transition-colors duration-150 relative z-10 group cursor-pointer h-11 rounded-lg whitespace-nowrap overflow-hidden bg-transparent text-left',
+        'w-full flex items-center text-sm font-bold transition-colors duration-150 relative z-10 group cursor-pointer h-11 rounded-lg whitespace-nowrap overflow-hidden bg-transparent text-left',
         collapsed ? 'justify-center px-0' : 'justify-start px-3.5 gap-3',
         isRouteActive('/dashboard')
-          ? 'text-[#4880FF] dark:text-[#93C5FD] font-semibold'
-          : 'text-[#475569] dark:text-[#CBD5E1] hover:text-[#4880FF] dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#334155]',
+          ? 'text-white font-bold'
+          : 'text-[#475569] dark:text-[#CBD5E1] hover:text-slate-900 dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#334155]',
       ]">
         <AppIcon name="dashboard" :size="18" class="shrink-0 transition-colors duration-150" />
         <span :class="[
@@ -315,16 +336,16 @@ const resetSidebarWidth = () => {
         'whitespace-nowrap overflow-hidden transition-[opacity,max-height,padding,transform] duration-300 ease-in-out',
         collapsed ? 'opacity-0 max-h-0 py-0 -translate-x-3 pointer-events-none' : 'opacity-100 max-h-10 pt-3 pb-1 px-3 translate-x-0 text-left'
       ]">
-        <span class="text-xs font-semibold uppercase tracking-wider text-[#64748B] dark:text-[#94A3B8]">{{ t('sidebar.sectionOperations') }}</span>
+        <span class="text-xs font-bold uppercase tracking-wider text-[#64748B] dark:text-[#94A3B8]">{{ t('sidebar.sectionOperations') }}</span>
       </div>
 
       <!-- POS Kasir -->
       <button type="button" @click="navigate('/pos/orders')" :data-active="isRouteGroupActive('/pos')" :class="[
-        'w-full flex items-center text-sm font-semibold transition-colors duration-150 relative z-10 group cursor-pointer h-11 rounded-lg whitespace-nowrap overflow-hidden bg-transparent text-left',
+        'w-full flex items-center text-sm font-bold transition-colors duration-150 relative z-10 group cursor-pointer h-11 rounded-lg whitespace-nowrap overflow-hidden bg-transparent text-left',
         collapsed ? 'justify-center px-0' : 'justify-start px-3.5 gap-3',
         isRouteGroupActive('/pos')
-          ? 'text-[#4880FF] dark:text-[#93C5FD] font-semibold'
-          : 'text-[#475569] dark:text-[#CBD5E1] hover:text-[#4880FF] dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#334155]',
+          ? 'text-white font-bold'
+          : 'text-[#475569] dark:text-[#CBD5E1] hover:text-slate-900 dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#334155]',
       ]">
         <AppIcon name="point_of_sale" :size="18" class="shrink-0 transition-colors duration-150" />
         <span :class="[
@@ -335,11 +356,11 @@ const resetSidebarWidth = () => {
 
       <!-- KDS -->
       <button type="button" @click="navigate('/kds/queue')" :data-active="isRouteGroupActive('/kds')" :class="[
-        'w-full flex items-center text-sm font-semibold transition-colors duration-150 relative z-10 group cursor-pointer h-11 rounded-lg whitespace-nowrap overflow-hidden bg-transparent text-left',
+        'w-full flex items-center text-sm font-bold transition-colors duration-150 relative z-10 group cursor-pointer h-11 rounded-lg whitespace-nowrap overflow-hidden bg-transparent text-left',
         collapsed ? 'justify-center px-0' : 'justify-start px-3.5 gap-3',
         isRouteGroupActive('/kds')
-          ? 'text-[#4880FF] dark:text-[#93C5FD] font-semibold'
-          : 'text-[#475569] dark:text-[#CBD5E1] hover:text-[#4880FF] dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#334155]',
+          ? 'text-white font-bold'
+          : 'text-[#475569] dark:text-[#CBD5E1] hover:text-slate-900 dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#334155]',
       ]">
         <AppIcon name="soup_kitchen" :size="18" class="shrink-0 transition-colors duration-150" />
         <span :class="[
@@ -351,11 +372,11 @@ const resetSidebarWidth = () => {
       <!-- Tables QR -->
       <button type="button" @click="navigate('/dashboard/tables')" :data-active="isRouteActive('/dashboard/tables')"
         :class="[
-          'w-full flex items-center text-sm font-semibold transition-colors duration-150 relative z-10 group cursor-pointer h-11 rounded-lg whitespace-nowrap overflow-hidden bg-transparent text-left',
+          'w-full flex items-center text-sm font-bold transition-colors duration-150 relative z-10 group cursor-pointer h-11 rounded-lg whitespace-nowrap overflow-hidden bg-transparent text-left',
           collapsed ? 'justify-center px-0' : 'justify-start px-3.5 gap-3',
           isRouteActive('/dashboard/tables')
-            ? 'text-[#4880FF] dark:text-[#93C5FD] font-semibold'
-            : 'text-[#475569] dark:text-[#CBD5E1] hover:text-[#4880FF] dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#334155]',
+            ? 'text-white font-bold'
+            : 'text-[#475569] dark:text-[#CBD5E1] hover:text-slate-900 dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#334155]',
         ]">
         <AppIcon name="table_restaurant" :size="18" class="shrink-0 transition-colors duration-150" />
         <span :class="[
@@ -369,18 +390,18 @@ const resetSidebarWidth = () => {
         'whitespace-nowrap overflow-hidden transition-[opacity,max-height,padding,transform] duration-300 ease-in-out',
         collapsed ? 'opacity-0 max-h-0 py-0 -translate-x-3 pointer-events-none' : 'opacity-100 max-h-10 pt-3 pb-1 px-3 translate-x-0 text-left'
       ]">
-        <span class="text-xs font-semibold uppercase tracking-wider text-[#64748B] dark:text-[#94A3B8]">{{ t('sidebar.sectionManagement') }}</span>
+        <span class="text-xs font-bold uppercase tracking-wider text-[#64748B] dark:text-[#94A3B8]">{{ t('sidebar.sectionManagement') }}</span>
       </div>
 
       <!-- 1. Menu & Kategori (Expandable) -->
       <div>
         <button type="button" @click="menuExpanded = !menuExpanded"
           :data-active="isRouteGroupActive('/dashboard/menu') ? 'true' : undefined" :class="[
-            'w-full flex items-center text-sm font-semibold transition-colors duration-150 cursor-pointer h-11 relative z-10 group rounded-xl whitespace-nowrap overflow-hidden bg-transparent text-left',
+            'w-full flex items-center text-sm font-bold transition-colors duration-150 cursor-pointer h-11 relative z-10 group rounded-xl whitespace-nowrap overflow-hidden bg-transparent text-left',
             collapsed ? 'justify-center px-0' : 'justify-between px-3.5',
             isRouteGroupActive('/dashboard/menu')
-              ? 'text-[#4880FF] dark:text-[#93C5FD] font-semibold'
-              : 'text-[#475569] dark:text-[#CBD5E1] hover:text-[#4880FF] dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#334155]',
+              ? 'text-white font-bold'
+              : 'text-[#475569] dark:text-[#CBD5E1] hover:text-slate-900 dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#334155]',
           ]">
           <div class="flex items-center gap-3 min-w-0">
             <AppIcon name="restaurant_menu" :size="18" class="shrink-0 transition-colors duration-150" />
@@ -391,8 +412,11 @@ const resetSidebarWidth = () => {
           </div>
           <svg v-if="!collapsed" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-            class="transition-transform duration-200 text-slate-400 shrink-0 ml-auto"
-            :class="{ 'rotate-180': menuExpanded }">
+            class="transition-transform duration-200 shrink-0 ml-auto"
+            :class="[
+              isRouteGroupActive('/dashboard/menu') ? 'text-white' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200',
+              { 'rotate-180': menuExpanded }
+            ]" >
             <polyline points="6 9 12 15 18 9"></polyline>
           </svg>
         </button>
@@ -404,19 +428,19 @@ const resetSidebarWidth = () => {
             <button type="button" @click="navigate('/dashboard/menu/items')"
               :class="['w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-colors duration-150 cursor-pointer text-left',
                 isRouteActive('/dashboard/menu/items')
-                  ? 'bg-blue-50/80 text-[#4880FF] dark:bg-blue-900/30 dark:text-blue-300 font-semibold'
+                  ? 'bg-[#4880FF] text-white font-bold shadow-xs'
                   : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-[#F1F5F9] dark:hover:bg-[#334155]']">
               <span class="w-1.5 h-1.5 rounded-full shrink-0"
-                :class="isRouteActive('/dashboard/menu/items') ? 'bg-[#4880FF]' : 'bg-slate-300 dark:bg-slate-600'" />
+                :class="isRouteActive('/dashboard/menu/items') ? 'bg-white' : 'bg-slate-300 dark:bg-slate-600'" />
               <span class="truncate">{{ t('sidebar.menuItems') }}</span>
             </button>
             <button type="button" @click="navigate('/dashboard/menu/categories')"
               :class="['w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-colors duration-150 cursor-pointer text-left',
                 isRouteActive('/dashboard/menu/categories')
-                  ? 'bg-blue-50/80 text-[#4880FF] dark:bg-blue-900/30 dark:text-blue-300 font-semibold'
+                  ? 'bg-[#4880FF] text-white font-bold shadow-xs'
                   : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-[#F1F5F9] dark:hover:bg-[#334155]']">
               <span class="w-1.5 h-1.5 rounded-full shrink-0"
-                :class="isRouteActive('/dashboard/menu/categories') ? 'bg-[#4880FF]' : 'bg-slate-300 dark:bg-slate-600'" />
+                :class="isRouteActive('/dashboard/menu/categories') ? 'bg-white' : 'bg-slate-300 dark:bg-slate-600'" />
               <span class="truncate">{{ t('sidebar.menuCategories') }}</span>
             </button>
           </div>
@@ -427,14 +451,14 @@ const resetSidebarWidth = () => {
       <div>
         <button type="button" @click="bahanBakuExpanded = !bahanBakuExpanded"
           :data-active="isRouteGroupActive('/dashboard/ingredients') ? 'true' : undefined" :class="[
-            'w-full flex items-center text-sm font-semibold transition-colors duration-150 cursor-pointer h-11 relative z-10 group rounded-xl whitespace-nowrap overflow-hidden bg-transparent text-left',
+            'w-full flex items-center text-sm font-bold transition-colors duration-150 cursor-pointer h-11 relative z-10 group rounded-xl whitespace-nowrap overflow-hidden bg-transparent text-left',
             collapsed ? 'justify-center px-0' : 'justify-between px-3.5',
             isRouteGroupActive('/dashboard/ingredients')
-              ? 'text-[#4880FF] dark:text-[#93C5FD] font-semibold'
-              : 'text-[#475569] dark:text-[#CBD5E1] hover:text-[#4880FF] dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#334155]',
+              ? 'text-white font-bold'
+              : 'text-[#475569] dark:text-[#CBD5E1] hover:text-slate-900 dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#334155]',
           ]">
           <div class="flex items-center gap-3 min-w-0">
-            <AppIcon name="egg" :size="18" class="shrink-0 transition-colors duration-150" />
+            <AppIcon name="egg" :size="20" class="shrink-0 transition-colors duration-150" />
             <span :class="[
               'whitespace-nowrap overflow-hidden text-ellipsis transition-[opacity,transform,max-width] duration-300 ease-in-out text-left',
               collapsed ? 'opacity-0 -translate-x-4 max-w-0 pointer-events-none' : 'opacity-100 translate-x-0'
@@ -442,8 +466,11 @@ const resetSidebarWidth = () => {
           </div>
           <svg v-if="!collapsed" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-            class="transition-transform duration-200 text-slate-400 shrink-0 ml-auto"
-            :class="{ 'rotate-180': bahanBakuExpanded }">
+            class="transition-transform duration-200 shrink-0 ml-auto"
+            :class="[
+              isRouteGroupActive('/dashboard/ingredients') ? 'text-white' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200',
+              { 'rotate-180': bahanBakuExpanded }
+            ]" >
             <polyline points="6 9 12 15 18 9"></polyline>
           </svg>
         </button>
@@ -455,7 +482,7 @@ const resetSidebarWidth = () => {
             <button type="button" @click="navigate('/dashboard/ingredients/items')"
               :class="['w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-colors duration-150 cursor-pointer text-left',
                 isRouteActive('/dashboard/ingredients/items')
-                  ? 'bg-blue-50/80 text-[#4880FF] dark:bg-blue-900/30 dark:text-blue-300 font-semibold'
+                  ? 'bg-[#4880FF] text-white font-bold shadow-xs'
                   : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-[#F1F5F9] dark:hover:bg-[#334155]']">
               <span class="w-1.5 h-1.5 rounded-full shrink-0"
                 :class="isRouteActive('/dashboard/ingredients/items') ? 'bg-[#4880FF]' : 'bg-slate-300 dark:bg-slate-600'" />
@@ -464,19 +491,19 @@ const resetSidebarWidth = () => {
             <button type="button" @click="navigate('/dashboard/ingredients/categories')"
               :class="['w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-colors duration-150 cursor-pointer text-left',
                 isRouteActive('/dashboard/ingredients/categories')
-                  ? 'bg-blue-50/80 text-[#4880FF] dark:bg-blue-900/30 dark:text-blue-300 font-semibold'
+                  ? 'bg-[#4880FF] text-white font-bold shadow-xs'
                   : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-[#F1F5F9] dark:hover:bg-[#334155]']">
               <span class="w-1.5 h-1.5 rounded-full shrink-0"
-                :class="isRouteActive('/dashboard/ingredients/categories') ? 'bg-[#4880FF]' : 'bg-slate-300 dark:bg-slate-600'" />
+                :class="isRouteActive('/dashboard/ingredients/categories') ? 'bg-white' : 'bg-slate-300 dark:bg-slate-600'" />
               <span class="truncate">{{ t('sidebar.ingredientCategories') }}</span>
             </button>
             <button type="button" @click="navigate('/dashboard/ingredients/recipes')"
               :class="['w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-colors duration-150 cursor-pointer text-left',
                 isRouteActive('/dashboard/ingredients/recipes')
-                  ? 'bg-blue-50/80 text-[#4880FF] dark:bg-blue-900/30 dark:text-blue-300 font-semibold'
+                  ? 'bg-[#4880FF] text-white font-bold shadow-xs'
                   : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-[#F1F5F9] dark:hover:bg-[#334155]']">
               <span class="w-1.5 h-1.5 rounded-full shrink-0"
-                :class="isRouteActive('/dashboard/ingredients/recipes') ? 'bg-[#4880FF]' : 'bg-slate-300 dark:bg-slate-600'" />
+                :class="isRouteActive('/dashboard/ingredients/recipes') ? 'bg-white' : 'bg-slate-300 dark:bg-slate-600'" />
               <span class="truncate">{{ t('sidebar.recipes') }}</span>
             </button>
           </div>
@@ -487,11 +514,11 @@ const resetSidebarWidth = () => {
       <div>
         <button type="button" @click="stokExpanded = !stokExpanded"
           :data-active="isRouteGroupActive('/dashboard/stock') ? 'true' : undefined" :class="[
-            'w-full flex items-center text-sm font-semibold transition-colors duration-150 cursor-pointer h-11 relative z-10 group rounded-xl whitespace-nowrap overflow-hidden bg-transparent text-left',
+            'w-full flex items-center text-sm font-bold transition-colors duration-150 cursor-pointer h-11 relative z-10 group rounded-xl whitespace-nowrap overflow-hidden bg-transparent text-left',
             collapsed ? 'justify-center px-0' : 'justify-between px-3.5',
             isRouteGroupActive('/dashboard/stock')
-              ? 'text-[#4880FF] dark:text-[#93C5FD] font-semibold'
-              : 'text-[#475569] dark:text-[#CBD5E1] hover:text-[#4880FF] dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#334155]',
+              ? 'text-white font-bold'
+              : 'text-[#475569] dark:text-[#CBD5E1] hover:text-slate-900 dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#334155]',
           ]">
           <div class="flex items-center gap-3 min-w-0">
             <AppIcon name="inventory_2" :size="18" class="shrink-0 transition-colors duration-150" />
@@ -502,8 +529,11 @@ const resetSidebarWidth = () => {
           </div>
           <svg v-if="!collapsed" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-            class="transition-transform duration-200 text-slate-400 shrink-0 ml-auto"
-            :class="{ 'rotate-180': stokExpanded }">
+            class="transition-transform duration-200 shrink-0 ml-auto"
+            :class="[
+              isRouteGroupActive('/dashboard/stock') ? 'text-white' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200',
+              { 'rotate-180': stokExpanded }
+            ]" >
             <polyline points="6 9 12 15 18 9"></polyline>
           </svg>
         </button>
@@ -515,28 +545,28 @@ const resetSidebarWidth = () => {
             <button type="button" @click="navigate('/dashboard/stock/current')"
               :class="['w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-colors duration-150 cursor-pointer text-left',
                 isRouteActive('/dashboard/stock/current')
-                  ? 'bg-blue-50/80 text-[#4880FF] dark:bg-blue-900/30 dark:text-blue-300 font-semibold'
+                  ? 'bg-[#4880FF] text-white font-bold shadow-xs'
                   : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-[#F1F5F9] dark:hover:bg-[#334155]']">
               <span class="w-1.5 h-1.5 rounded-full shrink-0"
-                :class="isRouteActive('/dashboard/stock/current') ? 'bg-[#4880FF]' : 'bg-slate-300 dark:bg-slate-600'" />
+                :class="isRouteActive('/dashboard/stock/current') ? 'bg-white' : 'bg-slate-300 dark:bg-slate-600'" />
               <span class="truncate">{{ t('sidebar.currentStock') }}</span>
             </button>
             <button type="button" @click="navigate('/dashboard/stock/opname')"
               :class="['w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-colors duration-150 cursor-pointer text-left',
                 isRouteActive('/dashboard/stock/opname')
-                  ? 'bg-blue-50/80 text-[#4880FF] dark:bg-blue-900/30 dark:text-blue-300 font-semibold'
+                  ? 'bg-[#4880FF] text-white font-bold shadow-xs'
                   : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-[#F1F5F9] dark:hover:bg-[#334155]']">
               <span class="w-1.5 h-1.5 rounded-full shrink-0"
-                :class="isRouteActive('/dashboard/stock/opname') ? 'bg-[#4880FF]' : 'bg-slate-300 dark:bg-slate-600'" />
+                :class="isRouteActive('/dashboard/stock/opname') ? 'bg-white' : 'bg-slate-300 dark:bg-slate-600'" />
               <span class="truncate">{{ t('sidebar.stockOpname') }}</span>
             </button>
             <button type="button" @click="navigate('/dashboard/stock/history')"
               :class="['w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-colors duration-150 cursor-pointer text-left',
                 isRouteActive('/dashboard/stock/history')
-                  ? 'bg-blue-50/80 text-[#4880FF] dark:bg-blue-900/30 dark:text-blue-300 font-semibold'
+                  ? 'bg-[#4880FF] text-white font-bold shadow-xs'
                   : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-[#F1F5F9] dark:hover:bg-[#334155]']">
               <span class="w-1.5 h-1.5 rounded-full shrink-0"
-                :class="isRouteActive('/dashboard/stock/history') ? 'bg-[#4880FF]' : 'bg-slate-300 dark:bg-slate-600'" />
+                :class="isRouteActive('/dashboard/stock/history') ? 'bg-white' : 'bg-slate-300 dark:bg-slate-600'" />
               <span class="truncate">{{ t('sidebar.stockHistory') }}</span>
             </button>
           </div>
@@ -547,14 +577,14 @@ const resetSidebarWidth = () => {
       <div>
         <button type="button" @click="laporanExpanded = !laporanExpanded"
           :data-active="isRouteGroupActive('/dashboard/reports')" :class="[
-            'w-full flex items-center text-sm font-semibold transition-colors duration-150 cursor-pointer h-11 relative z-10 group rounded-xl whitespace-nowrap overflow-hidden bg-transparent text-left',
+            'w-full flex items-center text-sm font-bold transition-colors duration-150 cursor-pointer h-11 relative z-10 group rounded-xl whitespace-nowrap overflow-hidden bg-transparent text-left',
             collapsed ? 'justify-center px-0' : 'justify-between px-3.5',
             isRouteGroupActive('/dashboard/reports')
-              ? 'text-[#4880FF] dark:text-[#93C5FD] font-semibold'
-              : 'text-[#475569] dark:text-[#CBD5E1] hover:text-[#4880FF] dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#334155]',
+              ? 'text-white font-bold'
+              : 'text-[#475569] dark:text-[#CBD5E1] hover:text-slate-900 dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#334155]',
           ]">
           <div class="flex items-center gap-3 min-w-0">
-            <AppIcon name="bar_chart_4_bars" :size="18" class="shrink-0 transition-colors duration-150" />
+            <AppIcon name="bar_chart_4_bars" :size="20" class="shrink-0 transition-colors duration-150" />
             <span :class="[
               'whitespace-nowrap overflow-hidden text-ellipsis transition-[opacity,transform,max-width] duration-300 ease-in-out text-left',
               collapsed ? 'opacity-0 -translate-x-4 max-w-0 pointer-events-none' : 'opacity-100 translate-x-0'
@@ -562,8 +592,11 @@ const resetSidebarWidth = () => {
           </div>
           <svg v-if="!collapsed" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-            class="transition-transform duration-200 text-slate-400 shrink-0 ml-auto"
-            :class="{ 'rotate-180': laporanExpanded }">
+            class="transition-transform duration-200 shrink-0 ml-auto"
+            :class="[
+              isRouteGroupActive('/dashboard/reports') ? 'text-white' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200',
+              { 'rotate-180': laporanExpanded }
+            ]" >
             <polyline points="6 9 12 15 18 9"></polyline>
           </svg>
         </button>
@@ -575,28 +608,28 @@ const resetSidebarWidth = () => {
             <button type="button" @click="navigate('/dashboard/reports/sales')"
               :class="['w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-colors duration-150 cursor-pointer text-left',
                 isRouteActive('/dashboard/reports/sales')
-                  ? 'bg-blue-50/80 text-[#4880FF] dark:bg-blue-900/30 dark:text-blue-300 font-semibold'
+                  ? 'bg-[#4880FF] text-white font-bold shadow-xs'
                   : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-[#F1F5F9] dark:hover:bg-[#334155]']">
               <span class="w-1.5 h-1.5 rounded-full shrink-0"
-                :class="isRouteActive('/dashboard/reports/sales') ? 'bg-[#4880FF]' : 'bg-slate-300 dark:bg-slate-600'" />
+                :class="isRouteActive('/dashboard/reports/sales') ? 'bg-white' : 'bg-slate-300 dark:bg-slate-600'" />
               <span class="truncate">{{ t('sidebar.salesReport') }}</span>
             </button>
             <button type="button" @click="navigate('/dashboard/reports/top-items')"
               :class="['w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-colors duration-150 cursor-pointer text-left',
                 isRouteActive('/dashboard/reports/top-items')
-                  ? 'bg-blue-50/80 text-[#4880FF] dark:bg-blue-900/30 dark:text-blue-300 font-semibold'
+                  ? 'bg-[#4880FF] text-white font-bold shadow-xs'
                   : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-[#F1F5F9] dark:hover:bg-[#334155]']">
               <span class="w-1.5 h-1.5 rounded-full shrink-0"
-                :class="isRouteActive('/dashboard/reports/top-items') ? 'bg-[#4880FF]' : 'bg-slate-300 dark:bg-slate-600'" />
+                :class="isRouteActive('/dashboard/reports/top-items') ? 'bg-white' : 'bg-slate-300 dark:bg-slate-600'" />
               <span class="truncate">{{ t('sidebar.topItems') }}</span>
             </button>
             <button type="button" @click="navigate('/dashboard/reports/peak-hours')"
               :class="['w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-colors duration-150 cursor-pointer text-left',
                 isRouteActive('/dashboard/reports/peak-hours')
-                  ? 'bg-blue-50/80 text-[#4880FF] dark:bg-blue-900/30 dark:text-blue-300 font-semibold'
+                  ? 'bg-[#4880FF] text-white font-bold shadow-xs'
                   : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-[#F1F5F9] dark:hover:bg-[#334155]']">
               <span class="w-1.5 h-1.5 rounded-full shrink-0"
-                :class="isRouteActive('/dashboard/reports/peak-hours') ? 'bg-[#4880FF]' : 'bg-slate-300 dark:bg-slate-600'" />
+                :class="isRouteActive('/dashboard/reports/peak-hours') ? 'bg-white' : 'bg-slate-300 dark:bg-slate-600'" />
               <span class="truncate">{{ t('sidebar.peakHours') }}</span>
             </button>
           </div>
@@ -606,13 +639,13 @@ const resetSidebarWidth = () => {
       <!-- Staff -->
       <button type="button" @click="navigate('/dashboard/staff')" :data-active="isRouteActive('/dashboard/staff')"
         :class="[
-          'w-full flex items-center text-sm font-semibold transition-colors duration-150 relative z-10 group cursor-pointer h-11 rounded-lg whitespace-nowrap overflow-hidden bg-transparent text-left',
+          'w-full flex items-center text-sm font-bold transition-colors duration-150 relative z-10 group cursor-pointer h-11 rounded-lg whitespace-nowrap overflow-hidden bg-transparent text-left',
           collapsed ? 'justify-center px-0' : 'justify-start px-3.5 gap-3',
           isRouteActive('/dashboard/staff')
-            ? 'text-[#4880FF] dark:text-[#93C5FD] font-semibold'
-            : 'text-[#475569] dark:text-[#CBD5E1] hover:text-[#4880FF] dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#334155]',
+            ? 'text-white font-bold'
+            : 'text-[#475569] dark:text-[#CBD5E1] hover:text-slate-900 dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#334155]',
         ]">
-        <AppIcon name="group" :size="18" class="shrink-0 transition-colors duration-150" />
+        <AppIcon name="group" :size="20" class="shrink-0 transition-colors duration-150" />
         <span :class="[
           'whitespace-nowrap overflow-hidden text-ellipsis transition-[opacity,transform,max-width] duration-300 ease-in-out text-left',
           collapsed ? 'opacity-0 -translate-x-4 max-w-0 pointer-events-none' : 'opacity-100 translate-x-0'
@@ -622,13 +655,13 @@ const resetSidebarWidth = () => {
       <!-- Refunds -->
       <button type="button" @click="navigate('/dashboard/refunds')" :data-active="isRouteActive('/dashboard/refunds')"
         :class="[
-          'w-full flex items-center text-sm font-semibold transition-colors duration-150 relative z-10 group cursor-pointer h-11 rounded-lg whitespace-nowrap overflow-hidden bg-transparent text-left',
+          'w-full flex items-center text-sm font-bold transition-colors duration-150 relative z-10 group cursor-pointer h-11 rounded-lg whitespace-nowrap overflow-hidden bg-transparent text-left',
           collapsed ? 'justify-center px-0' : 'justify-start px-3.5 gap-3',
           isRouteActive('/dashboard/refunds')
-            ? 'text-[#4880FF] dark:text-[#93C5FD] font-semibold'
-            : 'text-[#475569] dark:text-[#CBD5E1] hover:text-[#4880FF] dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#334155]',
+            ? 'text-white font-bold'
+            : 'text-[#475569] dark:text-[#CBD5E1] hover:text-slate-900 dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#334155]',
         ]">
-        <AppIcon name="currency_exchange" :size="18" class="shrink-0 transition-colors duration-150" />
+        <AppIcon name="currency_exchange" :size="20" class="shrink-0 transition-colors duration-150" />
         <span :class="[
           'whitespace-nowrap overflow-hidden text-ellipsis transition-[opacity,transform,max-width] duration-300 ease-in-out text-left',
           collapsed ? 'opacity-0 -translate-x-4 max-w-0 pointer-events-none' : 'opacity-100 translate-x-0'
@@ -638,11 +671,11 @@ const resetSidebarWidth = () => {
       <!-- Outlets -->
       <button v-if="authStore.isOwner" type="button" @click="navigate('/dashboard/outlets')"
         :data-active="isRouteActive('/dashboard/outlets')" :class="[
-          'w-full flex items-center text-sm font-semibold transition-colors duration-150 relative z-10 group cursor-pointer h-11 rounded-lg whitespace-nowrap overflow-hidden bg-transparent text-left',
+          'w-full flex items-center text-sm font-bold transition-colors duration-150 relative z-10 group cursor-pointer h-11 rounded-lg whitespace-nowrap overflow-hidden bg-transparent text-left',
           collapsed ? 'justify-center px-0' : 'justify-start px-3.5 gap-3',
           isRouteActive('/dashboard/outlets')
-            ? 'text-[#4880FF] dark:text-[#93C5FD] font-semibold'
-            : 'text-[#475569] dark:text-[#CBD5E1] hover:text-[#4880FF] dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#334155]',
+            ? 'text-white font-bold'
+            : 'text-[#475569] dark:text-[#CBD5E1] hover:text-slate-900 dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#334155]',
         ]">
         <AppIcon name="storefront" :size="18" class="shrink-0 transition-colors duration-150" />
         <span :class="[
@@ -656,10 +689,10 @@ const resetSidebarWidth = () => {
         'whitespace-nowrap overflow-hidden transition-[opacity,max-height,padding,transform] duration-300 ease-in-out',
         collapsed ? 'opacity-0 max-h-0 py-0 -translate-x-3 pointer-events-none' : 'opacity-100 max-h-10 pt-3 pb-1 px-3 translate-x-0 text-left'
       ]">
-        <span class="text-xs font-semibold uppercase tracking-wider text-[#64748B] dark:text-[#94A3B8]">{{ t('sidebar.sectionCustomerView') }}</span>
+        <span class="text-xs font-bold uppercase tracking-wider text-[#64748B] dark:text-[#94A3B8]">{{ t('sidebar.sectionCustomerView') }}</span>
       </div>
       <button type="button" @click="openCustomerPreview" :class="[
-        'w-full flex items-center text-sm font-semibold text-[#475569] dark:text-[#CBD5E1] hover:text-[#4880FF] dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#334155] transition-colors duration-150 cursor-pointer h-11 relative z-10 group rounded-xl whitespace-nowrap overflow-hidden bg-transparent text-left',
+        'w-full flex items-center text-sm font-bold text-[#475569] dark:text-[#CBD5E1] hover:text-slate-900 dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#334155] transition-colors duration-150 cursor-pointer h-11 relative z-10 group rounded-xl whitespace-nowrap overflow-hidden bg-transparent text-left',
         collapsed ? 'justify-center px-0' : 'justify-start px-3.5 gap-3'
       ]">
         <AppIcon name="phone_android" :size="18" class="shrink-0 transition-colors duration-150" />
@@ -686,20 +719,13 @@ const resetSidebarWidth = () => {
         <div class="relative flex-1 min-w-0">
           <button type="button" @click.stop="toggleProfileMenu"
             class="w-full flex items-center gap-2 p-1 rounded-lg hover:bg-[#F1F5F9] dark:hover:bg-[#334155] transition-colors cursor-pointer text-left group">
-            <!-- Floral / Geometric Avatar matching Claude screenshot -->
-            <div
-              class="w-8 h-8 rounded-full bg-[#60A5FA] dark:bg-[#3B82F6] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                <circle cx="12" cy="7" r="3.5" opacity="0.9" />
-                <circle cx="12" cy="17" r="3.5" opacity="0.9" />
-                <circle cx="7" cy="12" r="3.5" opacity="0.9" />
-                <circle cx="17" cy="12" r="3.5" opacity="0.9" />
-                <circle cx="12" cy="12" r="2" fill="white" />
-              </svg>
+            <!-- User Profile Avatar Image -->
+            <div class="w-8 h-8 rounded-full overflow-hidden shrink-0 ring-1 ring-slate-200 dark:ring-slate-700 shadow-xs">
+              <img :src="userAvatar" :alt="authStore.currentUser?.name || 'User'" class="w-full h-full object-cover" />
             </div>
 
             <div class="flex items-center gap-1.5 min-w-0 flex-1">
-              <span class="text-sm font-semibold text-[#1E293B] dark:text-white truncate">
+              <span class="text-sm font-bold text-[#1E293B] dark:text-white truncate">
                 {{ authStore.currentUser?.name?.split(' ')[0] || 'Yoapipp' }}
               </span>
               <span class="text-xs text-slate-400 dark:text-slate-500 font-medium whitespace-nowrap">
@@ -715,41 +741,46 @@ const resetSidebarWidth = () => {
           <!-- Settings Popup Menu with Reusable Transition Animation (-10% compact scale) -->
           <AppDropdownMotion placement="top">
             <div v-if="isProfileMenuOpen"
-              class="absolute bottom-full left-0 mb-2 w-[260px] bg-slate-50 dark:bg-[#1B2431] rounded-xl border border-slate-200/90 dark:border-slate-700/80 shadow-xl shadow-slate-900/10 dark:shadow-black/40 p-1.5 z-50 text-left origin-bottom-left">
-              <!-- Top Header: User Profile Info -->
-              <div class="px-3 pt-2 pb-2.5 border-b border-slate-200/80 dark:border-slate-700/60 mb-1">
-                <p class="text-sm font-semibold text-slate-900 dark:text-white truncate">
-                  {{ authStore.currentUser?.name || 'User Lapaqu' }}
-                </p>
-                <p class="text-xs font-medium text-slate-500 dark:text-slate-400 truncate mt-0.5 select-all">
-                  {{ authStore.currentUser?.email || '' }}
-                </p>
+              class="absolute bottom-full left-0 mb-2 w-[260px] bg-white dark:bg-[#1E293B] rounded-xl border border-[#E2E8F0] dark:border-[#334155] shadow-xl p-1.5 z-50 text-left origin-bottom-left">
+              <!-- Top Header: User Profile Info with Avatar -->
+              <div class="px-3 pt-2 pb-2.5 border-b border-[#E2E8F0] dark:border-[#334155] mb-1 flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-full overflow-hidden shrink-0 ring-1 ring-slate-200 dark:ring-slate-700 shadow-xs">
+                  <img :src="userAvatar" :alt="authStore.currentUser?.name || 'User'" class="w-full h-full object-cover" />
+                </div>
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm font-bold text-slate-900 dark:text-white truncate">
+                    {{ authStore.currentUser?.name || 'User Lapaqu' }}
+                  </p>
+                  <p class="text-xs font-medium text-slate-500 dark:text-slate-400 truncate mt-0.5 select-all">
+                    {{ authStore.currentUser?.email || '' }}
+                  </p>
+                </div>
               </div>
 
               <!-- Menu Items -->
               <div class="space-y-0.5">
                 <button type="button" @click="isProfileMenuOpen = false; openSettingsModal()"
-                  class="w-full h-9.5 px-3 flex items-center gap-2.5 text-sm font-semibold text-[#475569] dark:text-[#CBD5E1] hover:text-[#4880FF] dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#334155] rounded-lg transition-colors duration-150 cursor-pointer text-left group">
+                  class="w-full h-9.5 px-3 flex items-center gap-2.5 text-sm font-bold text-[#475569] dark:text-[#CBD5E1] hover:text-slate-900 dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#334155] rounded-lg transition-colors duration-150 cursor-pointer text-left group">
                   <AppIcon name="settings" :size="18"
-                    class="shrink-0 transition-colors duration-150 text-[#475569] dark:text-[#CBD5E1] group-hover:text-[#4880FF] dark:group-hover:text-white" />
+                    class="shrink-0 transition-colors duration-150 text-[#475569] dark:text-[#CBD5E1] group-hover:text-slate-900 dark:group-hover:text-white" />
                   <span class="truncate">{{ t('sidebar.settings') }}</span>
                 </button>
 
                 <button type="button" @click="isProfileMenuOpen = false; openSettingsModal('billing')"
-                  class="w-full h-9.5 px-3 flex items-center gap-2.5 text-sm font-semibold text-[#475569] dark:text-[#CBD5E1] hover:text-[#4880FF] dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#334155] rounded-lg transition-colors duration-150 cursor-pointer text-left group">
+                  class="w-full h-9.5 px-3 flex items-center gap-2.5 text-sm font-bold text-[#475569] dark:text-[#CBD5E1] hover:text-slate-900 dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#334155] rounded-lg transition-colors duration-150 cursor-pointer text-left group">
                   <AppIcon name="arrow_circle_up" :size="18"
-                    class="shrink-0 transition-colors duration-150 text-[#475569] dark:text-[#CBD5E1] group-hover:text-[#4880FF] dark:group-hover:text-white" />
-                  <span class="truncate">Paket Langganan</span>
+                    class="shrink-0 transition-colors duration-150 text-[#475569] dark:text-[#CBD5E1] group-hover:text-slate-900 dark:group-hover:text-white" />
+                  <span class="truncate">{{ t('sidebar.subscription') }}</span>
                 </button>
               </div>
 
               <!-- Divider -->
-              <div class="border-t border-slate-200/80 dark:border-slate-700/60 my-1"></div>
+              <div class="border-t border-[#E2E8F0] dark:border-[#334155] my-1"></div>
 
               <!-- Group 3: Log out -->
               <div>
                 <button type="button" @click="isProfileMenuOpen = false; isLogoutModalOpen = true"
-                  class="w-full h-9.5 px-3 flex items-center gap-2.5 text-sm font-semibold text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors duration-150 cursor-pointer text-left group">
+                  class="w-full h-9.5 px-3 flex items-center gap-2.5 text-sm font-bold text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors duration-150 cursor-pointer text-left group">
                   <AppIcon name="logout" :size="18"
                     class="shrink-0 transition-colors duration-150 text-rose-600 dark:text-rose-400 group-hover:text-rose-700 dark:group-hover:text-rose-300" />
                   <span class="truncate">{{ t('sidebar.logout') }}</span>
@@ -767,7 +798,7 @@ const resetSidebarWidth = () => {
               'w-8 h-8 rounded-lg flex items-center justify-center transition-colors cursor-pointer relative',
               isNotificationMenuOpen
                 ? 'text-[#4880FF] bg-blue-50 dark:bg-blue-900/30'
-                : 'text-[#475569] dark:text-[#CBD5E1] hover:text-[#4880FF] hover:bg-[#F1F5F9] dark:hover:bg-[#334155]'
+                : 'text-[#475569] dark:text-[#CBD5E1] hover:text-slate-900 hover:bg-[#F1F5F9] dark:hover:bg-[#334155]'
             ]" title="Notifikasi">
               <AppIcon name="notifications" :size="18" />
               <!-- Notification badge dot -->
@@ -797,7 +828,7 @@ const resetSidebarWidth = () => {
               <!-- Notification items list -->
               <div class="max-h-72 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60">
                 <div v-if="notifications.length === 0"
-                  class="p-6 text-center text-xs text-slate-500 dark:text-slate-400">
+                  class="p-6 text-center text-sm text-slate-500 dark:text-slate-400">
                   Tidak ada notifikasi baru
                 </div>
                 <div v-else v-for="n in notifications" :key="n.id" @click="n.isRead = true" :class="[
@@ -834,7 +865,7 @@ const resetSidebarWidth = () => {
               <div
                 class="p-2 border-t border-slate-200/70 dark:border-slate-800 bg-slate-100/50 dark:bg-slate-900/30 text-center">
                 <button type="button" @click="isNotificationMenuOpen = false; navigate('/dashboard/notifications')"
-                  class="text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-[#4880FF] dark:hover:text-[#4880FF] transition-colors cursor-pointer">
+                  class="text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-900 transition-colors cursor-pointer">
                   Lihat Semua Notifikasi
                 </button>
               </div>
@@ -843,7 +874,7 @@ const resetSidebarWidth = () => {
 
           <!-- Search Icon Button -->
           <button type="button" @click="navigate('/dashboard')"
-            class="w-8 h-8 rounded-lg flex items-center justify-center text-[#475569] dark:text-[#CBD5E1] hover:text-[#4880FF] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] transition-colors cursor-pointer"
+            class="w-8 h-8 rounded-lg flex items-center justify-center text-[#475569] dark:text-[#CBD5E1] hover:text-slate-900 hover:bg-[#F1F5F9] dark:hover:bg-[#334155] transition-colors cursor-pointer"
             title="Cari">
             <AppIcon name="search" :size="18" />
           </button>
@@ -856,15 +887,8 @@ const resetSidebarWidth = () => {
         <button type="button" @click="openSettingsModal('account')"
           class="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-[#F1F5F9] dark:hover:bg-[#334155] transition-colors cursor-pointer"
           title="Pengaturan Akun">
-          <div
-            class="w-8 h-8 rounded-full bg-[#60A5FA] dark:bg-[#3B82F6] text-white flex items-center justify-center font-bold text-xs shadow-xs">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-              <circle cx="12" cy="7" r="3.5" opacity="0.9" />
-              <circle cx="12" cy="17" r="3.5" opacity="0.9" />
-              <circle cx="7" cy="12" r="3.5" opacity="0.9" />
-              <circle cx="17" cy="12" r="3.5" opacity="0.9" />
-              <circle cx="12" cy="12" r="2" fill="white" />
-            </svg>
+          <div class="w-8 h-8 rounded-full overflow-hidden shrink-0 ring-1 ring-slate-200 dark:ring-slate-700 shadow-xs">
+            <img :src="userAvatar" :alt="authStore.currentUser?.name || 'User'" class="w-full h-full object-cover" />
           </div>
         </button>
       </div>

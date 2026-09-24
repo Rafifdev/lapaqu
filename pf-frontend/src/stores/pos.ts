@@ -4,6 +4,8 @@ import { ref, computed } from 'vue'
 import type { Order, MenuItem, MenuCategory, TableItem, OrderStatus, Ingredient, MenuItemRecipe, IngredientCategory, IngredientStockLog, StockOpname, StockOpnameItem } from '@/types'
 import { useAuthStore } from './auth'
 import apiClient from '@/services/api'
+import soundService from '@/services/soundService'
+import notificationService from '@/services/notificationService'
 
 export const usePosStore = defineStore('pos', () => {
   const authStore = useAuthStore()
@@ -531,22 +533,29 @@ export const usePosStore = defineStore('pos', () => {
   }
 
   // Actions: Orders
-  const fetchOrders = async (isBackground = false) => {
+  const fetchOrders = async (isBackground = false, targetOutletId?: string) => {
     try {
       if (!isBackground && orders.value.length === 0) {
         isLoading.value = true
       }
       await authStore.ensureToken()
-      const res = await apiClient.get('/pos/orders')
+      const activeOutletId =
+        targetOutletId ||
+        localStorage.getItem('lapaqu_outlet_id') ||
+        authStore.currentUser?.outletId ||
+        undefined
+
+      const params: any = {}
+      if (activeOutletId) params.outlet_id = activeOutletId
+
+      const res = await apiClient.get('/pos/orders', { params })
       const data = res.data
       if (data.orders && Array.isArray(data.orders)) {
         reconcileOrders(data.orders)
 
-        if (!currentSubscribedOutletId) {
-          const firstOutlet = orders.value.find(o => isUuid(o.outletId))?.outletId
-          if (firstOutlet) {
-            initRealtime(firstOutlet)
-          }
+        const resolvedSubOutlet = activeOutletId || orders.value.find(o => isUuid(o.outletId))?.outletId
+        if (!currentSubscribedOutletId || (resolvedSubOutlet && currentSubscribedOutletId !== resolvedSubOutlet)) {
+          initRealtime(resolvedSubOutlet)
         }
       }
     } catch (err: any) {
@@ -781,8 +790,10 @@ export const usePosStore = defineStore('pos', () => {
       user = JSON.parse(localStorage.getItem('lapaqu_user') || '{}')
     } catch (e) {}
 
+    const savedOutletId = localStorage.getItem('lapaqu_outlet_id')
     const outletCandidate =
       (isUuid(targetOutletId) ? targetOutletId : null) ||
+      (isUuid(savedOutletId || '') ? savedOutletId : null) ||
       (isUuid(authStore.currentUser?.outletId) ? authStore.currentUser?.outletId : null) ||
       (isUuid(user?.outletId) ? user.outletId : null) ||
       (isUuid(user?.outlet_id) ? user.outlet_id : null) ||
@@ -813,15 +824,29 @@ export const usePosStore = defineStore('pos', () => {
       console.log('[Echo Reverb] Batched event (' + eventType + '):', payload)
       if (debounceTimer) clearTimeout(debounceTimer)
       debounceTimer = setTimeout(() => {
-        fetchOrders(true)
+        fetchOrders(true, outletCandidate)
         window.dispatchEvent(new CustomEvent('kds:refresh'))
       }, 250)
     }
 
     echo.private('outlet.' + outletCandidate)
-      .listen('.order.created', (data: any) => debouncedRefresh('order.created', data))
+      .listen('.order.created', (data: any) => {
+        debouncedRefresh('order.created', data)
+        const ord = data?.order || data
+        soundService.playOrderChime()
+        notificationService.showOrderNotification({
+          orderNumber: ord?.order_number || ord?.orderNumber,
+          customerName: ord?.customer_name || ord?.customerName,
+          totalAmount: ord?.total_amount || ord?.totalAmount,
+          tableNumber: ord?.table?.table_number || ord?.tableNumber,
+        })
+      })
       .listen('.order.status.updated', (data: any) => {
-        const updatedOrder = data?.order
+        const updatedOrder = data?.order || (data?.order_id ? { id: data.order_id, status: data.status, payment_status: data.payment_status } : null)
+        if (updatedOrder && (updatedOrder.status === 'cancelled' || updatedOrder.status === 'voided')) {
+          soundService.playVoidAlert()
+          notificationService.showVoidNotification(updatedOrder.order_number || updatedOrder.id)
+        }
         if (updatedOrder && updatedOrder.id) {
           const target = orders.value.find(ord => ord.id === updatedOrder.id)
           if (target) {

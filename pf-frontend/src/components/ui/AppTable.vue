@@ -371,7 +371,7 @@ const visiblePages = computed(() => {
                     {{ computedEmptyTitle }}
                   </h3>
                   <p
-                    class="text-xs sm:text-sm font-medium text-[#64748B] dark:text-[#94A3B8] mt-1.5 max-w-[280px] sm:max-w-xs md:max-w-sm leading-relaxed"
+                    class="text-sm font-medium text-[#64748B] dark:text-[#94A3B8] mt-1.5 max-w-[280px] sm:max-w-xs md:max-w-sm leading-relaxed"
                   >
                     {{ computedEmptySubtitle }}
                   </p>

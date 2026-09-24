@@ -549,17 +549,17 @@ const handleImageError = (e: Event) => {
           <div v-if="isLoading" :class="[
             'grid gap-4 p-1',
             isOrderPanelExpanded
-              ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4'
+              ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-5'
               : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6'
           ]">
-            <AppMenuCard v-for="n in 8" :key="n" loading />
+            <AppMenuCard v-for="n in 10" :key="n" loading />
           </div>
 
           <!-- Real Menu Cards Grid -->
           <div v-else-if="filteredItems.length > 0" :class="[
             'grid gap-4 p-1 select-none',
             isOrderPanelExpanded
-              ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4'
+              ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-5'
               : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6'
           ]">
             <AppMenuCard v-for="item in filteredItems" :key="item.id" :item="item" :quantity="getItemQuantity(item.id)"
@@ -577,7 +577,7 @@ const handleImageError = (e: Event) => {
               {{ posStore.menuItems.length === 0 ? 'Belum Ada Menu' : 'Whoops! :(' }}
             </h3>
             <p
-              class="text-xs sm:text-sm font-medium text-[#64748B] dark:text-[#94A3B8] mt-1.5 max-w-[280px] sm:max-w-xs md:max-w-sm leading-relaxed">
+              class="text-sm font-medium text-[#64748B] dark:text-[#94A3B8] mt-1.5 max-w-[280px] sm:max-w-xs md:max-w-sm leading-relaxed">
               {{ posStore.menuItems.length === 0
                 ? 'Outlet ini belum memiliki menu makanan. Silakan tambahkan menu melalui halaman Manajemen Menu di Dashboard.'
                 : 'Menu yang anda cari tidak ditemukan. Silahkan pilih kategori lain' }}
@@ -635,7 +635,7 @@ const handleImageError = (e: Event) => {
                 :title="orderType === 'dine_in' ? 'Klik untuk ubah nama pelanggan / nomor meja' : undefined">
                 <span
                   :class="[
-                    'text-xs font-bold block truncate max-w-[200px] transition-colors',
+                    'text-sm font-bold block truncate max-w-[200px] transition-colors',
                     isTableWarning
                       ? '!text-[#EF4444]'
                       : (orderType === 'dine_in' ? 'text-[#4880FF]' : 'text-[#202224] dark:text-white')
@@ -699,7 +699,7 @@ const handleImageError = (e: Event) => {
                 <AppIcon name="shopping_bag" :size="28" class="text-[#94A3B8]" />
               </div>
               <h4 class="text-sm font-bold text-[#202224] dark:text-white">Belum Ada Item Terpilih</h4>
-              <p class="text-xs text-[#64748B] dark:text-[#94A3B8] max-w-[200px] mt-1">
+              <p class="text-sm text-[#64748B] dark:text-[#94A3B8] max-w-[200px] mt-1">
                 Klik kartu menu makanan atau minuman untuk menambahkan ke pesanan.
               </p>
             </div>
@@ -778,7 +778,7 @@ const handleImageError = (e: Event) => {
 
               <!-- Total Payment -->
               <div class="flex justify-between items-center pt-0.5">
-                <span class="text-xs font-semibold text-[#64748B] dark:text-[#94A3B8]">Total Payment</span>
+                <span class="text-sm font-semibold text-[#64748B] dark:text-[#94A3B8]">Total Payment</span>
                 <span class="text-base font-bold tabular-nums">{{ formatCurrency(grandTotal) }}</span>
               </div>
             </div>
@@ -812,13 +812,13 @@ const handleImageError = (e: Event) => {
             <AppIcon name="shopping_bag" :size="28" />
             <span
               v-if="cartStore.items.length > 0"
-              class="absolute -top-2 -right-2.5 w-5.5 h-5.5 rounded-full bg-rose-500 text-xs font-black text-white flex items-center justify-center border-2 border-[#4880FF]"
+              class="absolute -top-2 -right-2.5 w-5.5 h-5.5 rounded-full bg-rose-500 text-sm font-black text-white flex items-center justify-center border-2 border-[#4880FF]"
             >
               {{ cartStore.items.length }}
             </span>
           </div>
           <div class="text-left">
-            <span class="text-xs font-bold opacity-90 block">Buka Pesanan</span>
+            <span class="text-sm font-bold opacity-90 block">Buka Pesanan</span>
             <span class="text-base font-bold tabular-nums">{{ formatCurrency(grandTotal) }}</span>
           </div>
           <div class="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center ml-1">
@@ -830,7 +830,7 @@ const handleImageError = (e: Event) => {
 
     <!-- 1. Edit Note Modal -->
     <AppModal :show="isNoteModalOpen" v-model="isNoteModalOpen" title="Tambah / Edit Catatan Menu" maxWidth="sm">
-      <div class="space-y-3 text-xs">
+      <div class="space-y-3 text-sm">
         <p class="text-[#64748B] dark:text-[#94A3B8]">
           Masukkan catatan pesanan khusus (  <em>Spicy Lv.5</em>, <em>Less Ice</em>, dll.):
         </p>
@@ -868,11 +868,11 @@ const handleImageError = (e: Event) => {
 
         <div class="border-t border-[#F1F4F9] dark:border-[#313D4F] pt-2">
           <div class="flex flex-wrap items-center justify-between gap-2 px-2 mb-3">
-            <label class="block text-xs font-bold text-[#1E293B] dark:text-white">
+            <label class="block text-sm font-bold text-[#1E293B] dark:text-white">
               Pilih Meja
             </label>
             <!-- Legend -->
-            <div class="flex items-center flex-wrap gap-2.5 sm:gap-3 text-[11px] font-bold text-[#64748B] dark:text-[#94A3B8]">
+            <div class="flex items-center flex-wrap gap-2.5 sm:gap-3 text-xs font-bold text-[#64748B] dark:text-[#94A3B8]">
               <div class="flex items-center gap-1.5">
                 <div class="w-3 h-3 rounded-full bg-[#E2E8F0] dark:bg-[#334155] border border-[#CBD5E1]/40" />
                 <span>Available</span>
@@ -893,7 +893,7 @@ const handleImageError = (e: Event) => {
             <!-- Indoor Area -->
             <div>
               <div class="text-center mb-4">
-                <span class="inline-block text-xs font-black uppercase tracking-widest text-[#475569] dark:text-[#94A3B8]">
+                <span class="inline-block text-sm font-black uppercase tracking-widest text-[#475569] dark:text-[#94A3B8]">
                   Indoor
                 </span>
               </div>
@@ -1067,7 +1067,7 @@ const handleImageError = (e: Event) => {
             <div v-if="outdoorTables.length > 0">
               <div class="border-t border-[#F1F4F9] dark:border-[#334155] my-4" />
               <div class="text-center mb-4">
-                <span class="inline-block text-xs font-black uppercase tracking-widest text-[#475569] dark:text-[#94A3B8]">
+                <span class="inline-block text-sm font-black uppercase tracking-widest text-[#475569] dark:text-[#94A3B8]">
                   Outdoor
                 </span>
               </div>
@@ -1251,7 +1251,7 @@ const handleImageError = (e: Event) => {
     <!-- 3. Cashier Place Order Payment Modal (2 Columns: Left = Order Items, Right = Payment Form) -->
     <AppModal :show="isPaymentModalOpen" v-model="isPaymentModalOpen" title="Konfirmasi & Pembayaran Pesanan"
       maxWidth="3xl">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-8 text-xs min-h-[420px]">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8 text-sm min-h-[420px]">
         <!-- LEFT COLUMN: Order Details & Item List -->
         <div
           class="flex flex-col border-b md:border-b-0 md:border-r border-[#F1F4F9] dark:border-[#313D4F] md:pr-8 pb-4 md:pb-0 h-full">
@@ -1259,7 +1259,7 @@ const handleImageError = (e: Event) => {
           <div
             class="flex items-center justify-between pb-3 border-b border-[#F1F4F9] dark:border-[#313D4F] mb-3 shrink-0">
             <div>
-              <span class="text-[11px] text-[#64748B] dark:text-[#94A3B8] font-medium block">
+              <span class="text-xs text-[#64748B] dark:text-[#94A3B8] font-medium block">
                 {{ customerName.trim() ? customerName.trim() : 'Pelanggan Manual' }}
               </span>
               <span class="font-bold text-sm text-[#1E293B] dark:text-white">
@@ -1283,7 +1283,7 @@ const handleImageError = (e: Event) => {
 
               <!-- Middle: Title & Note -->
               <div class="flex-1 min-w-0">
-                <h4 class="text-xs sm:text-sm font-bold text-[#1E293B] dark:text-white truncate">
+                <h4 class="text-sm font-bold text-[#1E293B] dark:text-white truncate">
                   {{ item.menuItem.name }}
                 </h4>
                 <p class="text-sm text-[#64748B] dark:text-[#94A3B8] truncate mt-0.5">
@@ -1293,10 +1293,10 @@ const handleImageError = (e: Event) => {
 
               <!-- Right: Quantity at Top Right (x1) & Price at Bottom Right -->
               <div class="flex flex-col items-end justify-between h-12 shrink-0">
-                <span class="text-xs font-bold text-[#4880FF]">
+                <span class="text-sm font-bold text-[#4880FF]">
                   x{{ item.quantity }}
                 </span>
-                <span class="text-xs sm:text-sm font-bold text-[#1E293B] dark:text-white tabular-nums">
+                <span class="text-sm font-bold text-[#1E293B] dark:text-white tabular-nums">
                   {{ formatCurrency(item.subtotal) }}
                 </span>
               </div>
@@ -1342,7 +1342,7 @@ const handleImageError = (e: Event) => {
                   }" />
 
                 <button type="button" @click="paymentMethod = 'cash'"
-                  class="relative z-10 flex-1 py-2.5 px-2 rounded-xl text-xs font-bold transition-colors duration-200 flex flex-col items-center gap-1 cursor-pointer"
+                  class="relative z-10 flex-1 py-2.5 px-2 rounded-xl text-sm font-bold transition-colors duration-200 flex flex-col items-center gap-1 cursor-pointer"
                   :class="paymentMethod === 'cash'
                     ? 'text-white font-extrabold'
                     : 'text-[#475569] dark:text-[#CBD5E1] hover:text-[#4880FF] dark:hover:text-white'">
@@ -1351,7 +1351,7 @@ const handleImageError = (e: Event) => {
                 </button>
 
                 <button type="button" @click="paymentMethod = 'qris'"
-                  class="relative z-10 flex-1 py-2.5 px-2 rounded-xl text-xs font-bold transition-colors duration-200 flex flex-col items-center gap-1 cursor-pointer"
+                  class="relative z-10 flex-1 py-2.5 px-2 rounded-xl text-sm font-bold transition-colors duration-200 flex flex-col items-center gap-1 cursor-pointer"
                   :class="paymentMethod === 'qris'
                     ? 'text-white font-extrabold'
                     : 'text-[#475569] dark:text-[#CBD5E1] hover:text-[#4880FF] dark:hover:text-white'">
@@ -1360,7 +1360,7 @@ const handleImageError = (e: Event) => {
                 </button>
 
                 <button type="button" @click="paymentMethod = 'debit'"
-                  class="relative z-10 flex-1 py-2.5 px-2 rounded-xl text-xs font-bold transition-colors duration-200 flex flex-col items-center gap-1 cursor-pointer"
+                  class="relative z-10 flex-1 py-2.5 px-2 rounded-xl text-sm font-bold transition-colors duration-200 flex flex-col items-center gap-1 cursor-pointer"
                   :class="paymentMethod === 'debit'
                     ? 'text-white font-extrabold'
                     : 'text-[#475569] dark:text-[#CBD5E1] hover:text-[#4880FF] dark:hover:text-white'">
@@ -1391,35 +1391,35 @@ const handleImageError = (e: Event) => {
                 </label>
                 <div class="grid grid-cols-4 gap-2 w-full">
                   <button type="button" @click="setPresetCash(grandTotal)"
-                    class="py-2.5 px-1 rounded-xl border border-[#CBD5E1] dark:border-[#334155] bg-white dark:bg-[#1E293B] text-xs font-bold hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#1E293B] dark:text-white cursor-pointer transition-all active:scale-95 text-center flex items-center justify-center">
+                    class="py-2.5 px-1 rounded-xl border border-[#CBD5E1] dark:border-[#334155] bg-white dark:bg-[#1E293B] text-sm font-bold hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#1E293B] dark:text-white cursor-pointer transition-all active:scale-95 text-center flex items-center justify-center">
                     Uang Pas
                   </button>
                   <button type="button" @click="setPresetCash(20000)"
-                    class="py-2.5 px-1 rounded-xl border border-[#CBD5E1] dark:border-[#334155] bg-white dark:bg-[#1E293B] text-xs font-bold hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#1E293B] dark:text-white cursor-pointer transition-all active:scale-95 text-center flex items-center justify-center tabular-nums">
+                    class="py-2.5 px-1 rounded-xl border border-[#CBD5E1] dark:border-[#334155] bg-white dark:bg-[#1E293B] text-sm font-bold hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#1E293B] dark:text-white cursor-pointer transition-all active:scale-95 text-center flex items-center justify-center tabular-nums">
                     Rp 20.000
                   </button>
                   <button type="button" @click="setPresetCash(50000)"
-                    class="py-2.5 px-1 rounded-xl border border-[#CBD5E1] dark:border-[#334155] bg-white dark:bg-[#1E293B] text-xs font-bold hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#1E293B] dark:text-white cursor-pointer transition-all active:scale-95 text-center flex items-center justify-center tabular-nums">
+                    class="py-2.5 px-1 rounded-xl border border-[#CBD5E1] dark:border-[#334155] bg-white dark:bg-[#1E293B] text-sm font-bold hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#1E293B] dark:text-white cursor-pointer transition-all active:scale-95 text-center flex items-center justify-center tabular-nums">
                     Rp 50.000
                   </button>
                   <button type="button" @click="setPresetCash(100000)"
-                    class="py-2.5 px-1 rounded-xl border border-[#CBD5E1] dark:border-[#334155] bg-white dark:bg-[#1E293B] text-xs font-bold hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#1E293B] dark:text-white cursor-pointer transition-all active:scale-95 text-center flex items-center justify-center tabular-nums">
+                    class="py-2.5 px-1 rounded-xl border border-[#CBD5E1] dark:border-[#334155] bg-white dark:bg-[#1E293B] text-sm font-bold hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#1E293B] dark:text-white cursor-pointer transition-all active:scale-95 text-center flex items-center justify-center tabular-nums">
                     Rp 100.000
                   </button>
                   <button type="button" @click="setPresetCash(200000)"
-                    class="py-2.5 px-1 rounded-xl border border-[#CBD5E1] dark:border-[#334155] bg-white dark:bg-[#1E293B] text-xs font-bold hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#1E293B] dark:text-white cursor-pointer transition-all active:scale-95 text-center flex items-center justify-center tabular-nums">
+                    class="py-2.5 px-1 rounded-xl border border-[#CBD5E1] dark:border-[#334155] bg-white dark:bg-[#1E293B] text-sm font-bold hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#1E293B] dark:text-white cursor-pointer transition-all active:scale-95 text-center flex items-center justify-center tabular-nums">
                     Rp 200.000
                   </button>
                   <button type="button" @click="setPresetCash(500000)"
-                    class="py-2.5 px-1 rounded-xl border border-[#CBD5E1] dark:border-[#334155] bg-white dark:bg-[#1E293B] text-xs font-bold hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#1E293B] dark:text-white cursor-pointer transition-all active:scale-95 text-center flex items-center justify-center tabular-nums">
+                    class="py-2.5 px-1 rounded-xl border border-[#CBD5E1] dark:border-[#334155] bg-white dark:bg-[#1E293B] text-sm font-bold hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#1E293B] dark:text-white cursor-pointer transition-all active:scale-95 text-center flex items-center justify-center tabular-nums">
                     Rp 500.000
                   </button>
                   <button type="button" @click="setPresetCash(1000000)"
-                    class="py-2.5 px-1 rounded-xl border border-[#CBD5E1] dark:border-[#334155] bg-white dark:bg-[#1E293B] text-xs font-bold hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#1E293B] dark:text-white cursor-pointer transition-all active:scale-95 text-center flex items-center justify-center tabular-nums">
+                    class="py-2.5 px-1 rounded-xl border border-[#CBD5E1] dark:border-[#334155] bg-white dark:bg-[#1E293B] text-sm font-bold hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#1E293B] dark:text-white cursor-pointer transition-all active:scale-95 text-center flex items-center justify-center tabular-nums">
                     Rp 1.000.000
                   </button>
                   <button type="button" @click="setPresetCash(2000000)"
-                    class="py-2.5 px-1 rounded-xl border border-[#CBD5E1] dark:border-[#334155] bg-white dark:bg-[#1E293B] text-xs font-bold hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#1E293B] dark:text-white cursor-pointer transition-all active:scale-95 text-center flex items-center justify-center tabular-nums">
+                    class="py-2.5 px-1 rounded-xl border border-[#CBD5E1] dark:border-[#334155] bg-white dark:bg-[#1E293B] text-sm font-bold hover:bg-[#F1F5F9] dark:hover:bg-[#334155] text-[#1E293B] dark:text-white cursor-pointer transition-all active:scale-95 text-center flex items-center justify-center tabular-nums">
                     Rp 2.000.000
                   </button>
                 </div>
@@ -1451,7 +1451,7 @@ const handleImageError = (e: Event) => {
               </div>
               <div class="space-y-1 max-w-xs">
                 <p class="text-base font-bold text-[#1E293B] dark:text-white">Gesek / Masukkan Kartu di Mesin EDC</p>
-                <p class="text-xs text-[#64748B] dark:text-[#94A3B8]">
+                <p class="text-sm text-[#64748B] dark:text-[#94A3B8]">
                   Pastikan transaksi di mesin EDC berhasil sebelum menekan tombol konfirmasi.
                 </p>
               </div>
@@ -1504,15 +1504,15 @@ const handleImageError = (e: Event) => {
           <h4 class="text-xl font-black text-[#1E293B] dark:text-white tracking-tight">
             {{ lastOrderData.orderNumber }}
           </h4>
-          <p class="text-xs text-[#64748B] dark:text-[#94A3B8] mt-0.5">
-            {{ lastOrderData.orderType }} â€¢ {{ lastOrderData.timestamp }}
+          <p class="text-sm text-[#64748B] dark:text-[#94A3B8] mt-0.5">
+            {{ lastOrderData.orderType }} • {{ lastOrderData.timestamp }}
           </p>
         </Motion>
 
         <!-- 3. Receipt Summary Box (Slide & Scale in after icon) -->
         <Motion :initial="{ opacity: 0, y: 20, scale: 0.96 }" :animate="{ opacity: 1, y: 0, scale: 1 }"
           :transition="{ type: 'spring', damping: 14, stiffness: 120, delay: 0.25 }"
-          class="p-4 bg-[#F8FAFC] dark:bg-[#1E293B] rounded-2xl text-left space-y-2 text-xs border border-[#E2E8F0] dark:border-[#334155] shadow-xs">
+          class="p-4 bg-[#F8FAFC] dark:bg-[#1E293B] rounded-2xl text-left space-y-2 text-sm border border-[#E2E8F0] dark:border-[#334155] shadow-xs">
           <div class="flex justify-between">
             <span class="text-[#64748B] dark:text-[#94A3B8]">Total Tagihan:</span>
             <span class="font-bold tabular-nums text-sm text-[#1E293B] dark:text-white">{{

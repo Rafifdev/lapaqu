@@ -47,7 +47,7 @@ const handleInput = (e: Event) => {
       :maxlength="maxlength"
       @input="handleInput"
       :class="[
-        'w-full px-3.5 py-2.5 text-sm font-medium text-[#1E293B] dark:text-white bg-white dark:bg-[#1B2431] border rounded-xl focus:outline-none transition-all placeholder:text-[#94A3B8] resize-none disabled:opacity-50 disabled:bg-[#F1F5F9] dark:disabled:bg-[#334155]',
+        'w-full px-3.5 py-2.5 text-sm font-medium text-[#1E293B] dark:text-white bg-white dark:bg-[#1B2431] border rounded-xl focus:outline-none transition-all placeholder:font-normal placeholder:text-[#94A3B8] resize-none disabled:opacity-50 disabled:bg-[#F1F5F9] dark:disabled:bg-[#334155]',
         error
           ? 'border-rose-500 '
           : 'border-[#CBD5E1] dark:border-[#334155] ',

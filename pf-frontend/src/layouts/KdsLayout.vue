@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppPageTransition from '@/components/ui/AppPageTransition.vue'
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -6,11 +7,13 @@ import { usePosStore } from '@/stores/pos'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppButton from '@/components/ui/AppButton.vue'
+import { usePosKdsI18n } from '@/i18n'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 const posStore = usePosStore()
+const { t, translate } = usePosKdsI18n()
 
 const isDark = ref(document.documentElement.classList.contains('dark'))
 const isLogoutModalOpen = ref(false)
@@ -26,15 +29,32 @@ const confirmedCount = computed(() => {
 })
 
 const preparingCount = computed(() => {
-  return posStore.orders.filter(o => o.status === 'preparing' || o.status === 'cooking').length
+  return posStore.orders.filter(o => o.status === 'preparing' || (o.status as any) === 'cooking').length
 })
 
 const readyCount = computed(() => {
   return posStore.orders.filter(o => o.status === 'ready').length
 })
 
+const isToday = (dateStr?: string) => {
+  if (!dateStr) return false
+  const d = new Date(dateStr)
+  const now = new Date()
+  return (
+    d.getDate() === now.getDate() &&
+    d.getMonth() === now.getMonth() &&
+    d.getFullYear() === now.getFullYear()
+  )
+}
+
 const completedCount = computed(() => {
-  return posStore.orders.filter(o => o.status === 'completed' || o.status === 'cancelled' || o.status === 'expired').length
+  return posStore.orders.filter(
+    o => (o.status === 'completed' || o.status === 'cancelled' || o.status === 'expired') && isToday(o.updatedAt || o.createdAt)
+  ).length
+})
+
+const historyCount = computed(() => {
+  return posStore.orders.length
 })
 
 const isTabActive = (targetPath: string, targetStatus?: string) => {
@@ -150,7 +170,7 @@ const handleLogout = async () => {
       <div class="flex items-center gap-2 sm:gap-3 shrink-0">
         <router-link v-if="authStore.isOwner" to="/dashboard"
           class="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-[#475569] dark:text-[#CBD5E1] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] hover:text-[#4880FF] transition-colors cursor-pointer"
-          title="Kembali ke Dashboard">
+          :title="t('kds.backToDashboard')">
           <AppIcon name="arrow_back" :size="20" />
         </router-link>
 
@@ -181,7 +201,7 @@ const handleLogout = async () => {
               : 'text-[#475569] dark:text-[#CBD5E1] hover:text-[#4880FF]',
           ]">
             <AppIcon name="apps" :size="16" class="shrink-0" />
-            <span>Semua <span v-if="allActiveCount > 0">({{ allActiveCount }})</span></span>
+            <span>{{ t('kds.all') }} <span v-if="allActiveCount > 0">({{ allActiveCount }})</span></span>
           </router-link>
 
           <!-- 2. Menunggu Dimasak -->
@@ -192,7 +212,7 @@ const handleLogout = async () => {
               : 'text-[#475569] dark:text-[#CBD5E1] hover:text-[#4880FF]',
           ]">
             <AppIcon name="schedule" :size="16" class="shrink-0" />
-            <span>Menunggu <span v-if="confirmedCount > 0">({{ confirmedCount }})</span></span>
+            <span>{{ t('kds.waiting') }} <span v-if="confirmedCount > 0">({{ confirmedCount }})</span></span>
           </router-link>
 
           <!-- 3. Sedang Dimasak -->
@@ -203,7 +223,7 @@ const handleLogout = async () => {
               : 'text-[#475569] dark:text-[#CBD5E1] hover:text-[#4880FF]',
           ]">
             <AppIcon name="skillet" :size="16" class="shrink-0" />
-            <span>Dimasak <span v-if="preparingCount > 0">({{ preparingCount }})</span></span>
+            <span>{{ t('kds.cooking') }} <span v-if="preparingCount > 0">({{ preparingCount }})</span></span>
           </router-link>
 
           <!-- 4. Siap Saji -->
@@ -214,10 +234,10 @@ const handleLogout = async () => {
               : 'text-[#475569] dark:text-[#CBD5E1] hover:text-[#4880FF]',
           ]">
             <AppIcon name="room_service" :size="16" class="shrink-0" />
-            <span>Siap Saji <span v-if="readyCount > 0">({{ readyCount }})</span></span>
+            <span>{{ t('kds.ready') }} <span v-if="readyCount > 0">({{ readyCount }})</span></span>
           </router-link>
 
-          <!-- 5. Riwayat Selesai -->
+          <!-- 5. Antrean Selesai (Selesai Hari Ini) -->
           <router-link to="/kds/completed" :data-active="isTabActive('/kds/completed')" :class="[
             'relative z-10 px-2.5 sm:px-3 md:px-3.5 lg:px-4 py-1.5 sm:py-2 rounded-lg text-xs md:text-xs lg:text-sm font-bold flex items-center gap-1.5 whitespace-nowrap transition-colors duration-200',
             isTabActive('/kds/completed')
@@ -225,7 +245,18 @@ const handleLogout = async () => {
               : 'text-[#475569] dark:text-[#CBD5E1] hover:text-[#4880FF]',
           ]">
             <AppIcon name="task_alt" :size="16" class="shrink-0" />
-            <span>Selesai <span v-if="completedCount > 0">({{ completedCount }})</span></span>
+            <span>{{ t('kds.completed', 'Antrean Selesai') }} <span v-if="completedCount > 0">({{ completedCount }})</span></span>
+          </router-link>
+
+          <!-- 6. Riwayat Pesanan (Seluruh Riwayat) -->
+          <router-link to="/kds/history" :data-active="isTabActive('/kds/history')" :class="[
+            'relative z-10 px-2.5 sm:px-3 md:px-3.5 lg:px-4 py-1.5 sm:py-2 rounded-lg text-xs md:text-xs lg:text-sm font-bold flex items-center gap-1.5 whitespace-nowrap transition-colors duration-200',
+            isTabActive('/kds/history')
+              ? 'text-white'
+              : 'text-[#475569] dark:text-[#CBD5E1] hover:text-[#4880FF]',
+          ]">
+            <AppIcon name="history" :size="16" class="shrink-0" />
+            <span>{{ t('kds.history', 'Riwayat Pesanan') }} <span v-if="historyCount > 0">({{ historyCount }})</span></span>
           </router-link>
         </nav>
       </div>
@@ -235,14 +266,14 @@ const handleLogout = async () => {
         <!-- Refresh Button (Icon Only Circle Button on Left of Theme Switch) -->
         <button @click="handleRefresh"
           class="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-[#475569] dark:text-[#CBD5E1] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] hover:text-[#4880FF] transition-colors cursor-pointer"
-          title="Refresh Data Dapur">
+          :title="t('kds.refreshTitle')">
           <AppIcon name="refresh" :size="18" :class="{ 'animate-spin': isRefreshing }" />
         </button>
 
         <!-- Dark/Light Mode Switch -->
         <button @click="toggleTheme"
           class="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-[#475569] dark:text-[#CBD5E1] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] transition-colors cursor-pointer"
-          title="Ganti Tema">
+          :title="t('kds.themeTitle')">
           <AppIcon v-if="isDark" name="light_mode" :size="18" class="text-[#FBBF24]" />
           <AppIcon v-else name="dark_mode" :size="18" />
         </button>
@@ -250,41 +281,39 @@ const handleLogout = async () => {
         <!-- Logout Button (Icon Only) -->
         <button @click="isLogoutModalOpen = true"
           class="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-[#FD5454] hover:bg-[#FFEBEB] dark:hover:bg-[#FD5454]/15 transition-colors cursor-pointer"
-          title="Keluar Akun">
+          :title="t('kds.logoutTitle')">
           <AppIcon name="logout" :size="18" />
         </button>
       </div>
     </header>
 
     <!-- Main Content Area: 100% full height of remaining screen -->
-    <main class="flex-1 p-3 sm:p-4 md:p-6 overflow-hidden flex flex-col min-h-0">
+    <main class="flex-1 p-3 sm:p-4 md:p-6 pb-1.5 sm:pb-2 md:pb-2 overflow-hidden flex flex-col min-h-0">
       <router-view v-slot="{ Component, route }">
-        <transition name="page-fade" mode="out-in">
-          <component :is="Component" :key="route.path" />
-        </transition>
+        <AppPageTransition :component="Component" :route="route" />
       </router-view>
     </main>
 
     <!-- Alert Modal: Konfirmasi Keluar KDS -->
-    <AppModal v-model="isLogoutModalOpen" title="Konfirmasi Keluar" maxWidth="sm">
+    <AppModal v-model="isLogoutModalOpen" :title="t('kds.logoutModalTitle')" maxWidth="sm">
       <div class="space-y-3 py-2 text-center">
         <div
           class="w-14 h-14 rounded-full bg-rose-50 dark:bg-rose-950/40 text-[#FD5454] flex items-center justify-center mx-auto mb-2">
           <AppIcon name="logout" :size="28" />
         </div>
-        <h3 class="text-base font-bold text-[#202224] dark:text-white">Keluar dari Dapur KDS?</h3>
-        <p class="text-xs text-[#64748B] dark:text-[#94A3B8]">
-          Sesi aktif dapur Anda akan diakhiri. Anda perlu login kembali untuk mengakses sistem dapur.
+        <h3 class="text-base font-bold text-[#202224] dark:text-white">{{ t('kds.logoutModalTitle') }}</h3>
+        <p class="text-sm text-[#64748B] dark:text-[#94A3B8]">
+          {{ t('kds.logoutModalDesc') }}
         </p>
       </div>
       <template #footer>
         <div class="flex items-center justify-end gap-3 w-full">
-          <AppButton variant="outline" size="sm" @click="isLogoutModalOpen = false" class="!rounded-lg flex-1">
-            Batal
+          <AppButton variant="outline" size="md" @click="isLogoutModalOpen = false" class="!rounded-lg flex-1">
+            {{ t('kds.cancel') }}
           </AppButton>
-          <AppButton variant="primary" size="sm" @click="handleLogout"
+          <AppButton variant="primary" size="md" @click="handleLogout"
             class="!rounded-lg flex-1 !bg-[#FD5454] !text-white hover:!bg-[#E03E3E] !border-[#FD5454]">
-            Ya, Keluar
+            {{ t('kds.yesLogout') }}
           </AppButton>
         </div>
       </template>

@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useFormat } from '@/composables/useFormat'
 import { useCartStore } from '@/stores/cart'
+import apiClient from '@/services/api'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
@@ -11,21 +12,73 @@ import AppIcon from '@/components/ui/AppIcon.vue'
 const router = useRouter()
 const route = useRoute()
 const cartStore = useCartStore()
-const { formatCurrency } = useFormat()
+const { formatCurrency, formatTimeOnly } = useFormat()
 
 const isLoading = ref(true)
+const orders = ref<any[]>([])
 
-onMounted(async () => {
+const outletId = computed(() => (route.params.outletId as string) || cartStore.outletId || '')
+const tableCode = computed(() => (route.params.tableCode as string) || cartStore.tableCode || '')
+const menuUrl = computed(() => `/order/${outletId.value}/${tableCode.value}`)
+
+const fetchSessionOrders = async () => {
+  if (!tableCode.value) {
+    isLoading.value = false
+    return
+  }
+
   try {
-    await new Promise(r => setTimeout(r, 350))
+    isLoading.value = true
+    const res = await apiClient.get('/public/orders/active', {
+      params: {
+        table_code: tableCode.value,
+        outlet_id: outletId.value || undefined,
+      },
+    })
+
+    if (res.data?.orders && Array.isArray(res.data.orders)) {
+      orders.value = res.data.orders
+    } else if (res.data?.order) {
+      orders.value = [res.data.order]
+    } else {
+      orders.value = []
+    }
+  } catch (err) {
+    console.error('Failed to fetch session orders:', err)
+    orders.value = []
   } finally {
     isLoading.value = false
   }
+}
+
+onMounted(() => {
+  fetchSessionOrders()
 })
 
-const outletId = computed(() => (route.params.outletId as string) || 'outlet-001')
-const tableCode = computed(() => (route.params.tableCode as string) || cartStore.tableCode || 'M03')
-const menuUrl = computed(() => `/order/${outletId.value}/${tableCode.value}`)
+const getStatusBadge = (status: string) => {
+  switch (status) {
+    case 'completed':
+      return { variant: 'success' as const, label: 'Selesai' }
+    case 'ready':
+      return { variant: 'info' as const, label: 'Siap Disajikan' }
+    case 'preparing':
+    case 'cooking':
+      return { variant: 'warning' as const, label: 'Diproses' }
+    case 'confirmed':
+      return { variant: 'primary' as const, label: 'Diterima Dapur' }
+    case 'cancelled':
+      return { variant: 'danger' as const, label: 'Dibatalkan' }
+    default:
+      return { variant: 'neutral' as const, label: status }
+  }
+}
+
+const getItemsSummary = (orderItems: any[]) => {
+  if (!orderItems || orderItems.length === 0) return '-'
+  return orderItems
+    .map(i => `${i.quantity}x ${i.item_name_snapshot || i.name || 'Menu'}`)
+    .join(', ')
+}
 </script>
 
 <template>
@@ -57,35 +110,70 @@ const menuUrl = computed(() => `/order/${outletId.value}/${tableCode.value}`)
     <!-- REAL DATA STATE -->
     <template v-else>
       <div>
-        <h2 class="text-lg font-black text-[#202224] dark:text-white">Riwayat Sesi Meja {{ tableCode }}</h2>
-        <p class="text-xs text-[#64748B] dark:text-[#94A3B8] font-medium mt-0.5">Daftar semua pesanan yang telah dikirim dalam sesi kunjungan ini.</p>
+        <h2 class="text-lg font-black text-[#202224] dark:text-white">
+          Riwayat Sesi Meja {{ tableCode || '-' }}
+        </h2>
+        <p class="text-xs text-[#64748B] dark:text-[#94A3B8] font-medium mt-0.5">
+          Daftar semua pesanan yang telah dikirim dalam sesi kunjungan ini.
+        </p>
       </div>
 
-      <div class="space-y-3">
-        <!-- Order History Card (AppCard & AppBadge Reusable Components) -->
-        <AppCard class="!p-4 border border-[#E2E8F0] dark:border-[#334155] space-y-3">
+      <!-- Empty State jika belum ada pesanan -->
+      <div
+        v-if="orders.length === 0"
+        class="py-12 bg-white dark:bg-[#273142] rounded-3xl p-6 border border-[#E2E8F0] dark:border-[#334155] shadow-xs text-center space-y-3"
+      >
+        <div class="w-16 h-16 rounded-full bg-slate-100 dark:bg-[#1E293B] text-slate-400 flex items-center justify-center mx-auto">
+          <AppIcon name="receipt_long" :size="32" />
+        </div>
+        <h3 class="text-base font-bold text-[#1E293B] dark:text-white">Belum Ada Riwayat Pesanan</h3>
+        <p class="text-xs text-[#64748B] dark:text-[#94A3B8] max-w-xs mx-auto">
+          Pesanan yang Anda kirimkan ke dapur dalam sesi meja ini akan tercatat di sini.
+        </p>
+        <AppButton @click="router.push(menuUrl)" variant="primary" class="mt-2 !rounded-full">
+          Pesan Menu Sekarang
+        </AppButton>
+      </div>
+
+      <!-- Real Order List -->
+      <div v-else class="space-y-3">
+        <AppCard
+          v-for="ord in orders"
+          :key="ord.id"
+          class="!p-4 border border-[#E2E8F0] dark:border-[#334155] space-y-3"
+        >
           <div class="flex items-center justify-between">
-            <span class="text-xs font-black text-[#202224] dark:text-white">#ORD-260830-001</span>
-            <AppBadge variant="warning" size="sm" dot>Diproses</AppBadge>
+            <span class="text-xs font-black text-[#202224] dark:text-white font-mono">
+              #{{ ord.order_number }}
+            </span>
+            <AppBadge :variant="getStatusBadge(ord.status).variant" size="sm" dot>
+              {{ getStatusBadge(ord.status).label }}
+            </AppBadge>
           </div>
-          <p class="text-xs text-[#475569] dark:text-[#CBD5E1] font-medium">2x Kopi Susu Gula Aren, 1x Croissant Butter</p>
+          <p class="text-xs text-[#475569] dark:text-[#CBD5E1] font-medium">
+            {{ getItemsSummary(ord.items) }}
+          </p>
           <div class="flex justify-between items-center pt-2 border-t border-[#E2E8F0] dark:border-[#334155]">
-            <span class="text-[11px] text-[#64748B] dark:text-[#94A3B8]">11:05 WIB</span>
-            <span class="text-xs font-bold text-[#1E293B] dark:text-white tabular-nums">Rp 72.000</span>
+            <span class="text-[11px] text-[#64748B] dark:text-[#94A3B8]">
+              {{ formatTimeOnly(ord.created_at) }} WIB
+            </span>
+            <span class="text-xs font-bold text-[#1E293B] dark:text-white tabular-nums">
+              {{ formatCurrency(ord.total_amount) }}
+            </span>
           </div>
         </AppCard>
-      </div>
 
-      <AppButton
-        @click="router.push(menuUrl)"
-        variant="primary"
-        size="md"
-        block
-        icon="restaurant_menu"
-        class="mt-6"
-      >
-        Pesan Menu Lagi
-      </AppButton>
+        <AppButton
+          @click="router.push(menuUrl)"
+          variant="primary"
+          size="md"
+          block
+          icon="restaurant_menu"
+          class="mt-6 !rounded-full"
+        >
+          Pesan Menu Lagi
+        </AppButton>
+      </div>
     </template>
   </div>
 </template>

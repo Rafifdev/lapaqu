@@ -17,7 +17,7 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 html {
-  font-size: 14.4px; /* Exact 90% scale for sleek, modern, compact dashboard feel */
+  font-size: 14.4px; /* Exact 90% scale for sleek, modern, compact UI feel (1rem = 14.4px) */
 }
 
 @layer base {
@@ -26,7 +26,8 @@ html {
   }
   body {
     font-family: var(--font-sans);
-    font-size: 1rem;
+    font-size: 0.875rem; /* 14px default base for modern SaaS dashboard */
+    line-height: 1.42857; /* 20px line-height */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -167,4 +168,67 @@ select:active {
 .sheet-modal-enter-to,
 .sheet-modal-leave-from {
   transform: translateY(0) !important;
+}
+
+/* Override browser default autofill bluish tint (#e8f0fe) with hover color #F5F7FA */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #F5F7FA inset !important;
+  box-shadow: 0 0 0 1000px #F5F7FA inset !important;
+  -webkit-text-fill-color: #1E293B !important;
+  caret-color: #1E293B !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover,
+.dark input:-webkit-autofill:focus,
+.dark input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #222B3A inset !important;
+  box-shadow: 0 0 0 1000px #222B3A inset !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+  caret-color: #FFFFFF !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* Ensure all input & textarea placeholders use normal font weight */
+input::placeholder,
+textarea::placeholder {
+  font-weight: 400 !important;
+}
+
+/* Notyf Toast Custom Styling (Tailwind rounded-lg) */
+.notyf__toast {
+  border-radius: 0.5rem !important; /* rounded-lg (8px) */
+}
+
+.notyf__wrapper {
+  border-radius: 0.5rem !important;
+}
+
+/* Reduced Motion Support (Animasi & Transisi Minimal) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+:root.reduce-motion *,
+:root.reduce-motion *::before,
+:root.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+.notyf {
+  z-index: 9999999 !important;
 }

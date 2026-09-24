@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
+import { useDashboardI18n } from '@/i18n'
 import emptyMenuIllustration from '@/assets/empty_state/empty-menu.svg'
 import emptyOrderIllustration from '@/assets/empty_state/empty-order.svg'
 import emptyRiwayatIllustration from '@/assets/empty_state/empty-riwayat.svg'
@@ -25,6 +26,13 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   title: 'Tidak Ada Data',
   actionIcon: 'restaurant_menu',
+})
+
+const { t } = useDashboardI18n()
+
+const displayTitle = computed(() => {
+  if (props.title && props.title !== 'Tidak Ada Data') return props.title
+  return t('common.noData', 'Tidak Ada Data')
 })
 
 defineEmits<{
@@ -61,12 +69,12 @@ const illustrationSrc = computed(() => {
     </div>
 
     <!-- Title -->
-    <h4 class="text-lg sm:text-xl font-extrabold text-[#1E293B] dark:text-white tracking-tight">
-      {{ title }}
+    <h4 class="text-base sm:text-lg font-bold text-[#1E293B] dark:text-white tracking-tight">
+      {{ displayTitle }}
     </h4>
 
     <!-- Description -->
-    <p v-if="description" class="text-xs sm:text-sm text-[#64748B] dark:text-[#94A3B8] font-medium max-w-xs mt-1.5 mb-6 leading-relaxed">
+    <p v-if="description" class="text-xs text-[#64748B] dark:text-[#94A3B8] font-medium max-w-xs mt-1.5 mb-6 leading-relaxed">
       {{ description }}
     </p>
 
@@ -75,7 +83,7 @@ const illustrationSrc = computed(() => {
       v-if="actionLabel"
       type="button"
       @click="$emit('action')"
-      class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#4880FF] hover:bg-[#3971F0] text-white text-xs sm:text-sm font-bold shadow-md shadow-[#4880FF]/25 transition-all active:scale-95 cursor-pointer"
+      class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#4880FF] hover:bg-[#3971F0] text-white text-xs font-bold shadow-md shadow-[#4880FF]/25 transition-all active:scale-95 cursor-pointer"
     >
       <AppIcon :name="actionIcon" :size="18" />
       <span>{{ actionLabel }}</span>

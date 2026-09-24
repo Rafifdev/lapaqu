@@ -14,20 +14,44 @@ class StaffController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $outletId = $request->query('outlet_id', $request->user()->outlet_id);
+        $currentUser = $request->user();
+        
+        // Store Manager is strictly locked to their own outlet
+        if ($currentUser->hasRole('store_manager')) {
+            $outletId = $currentUser->outlet_id;
+        } else {
+            // Owner & Superadmin view all tenant staff by default unless specific outlet_id query param is provided
+            $outletId = $request->query('outlet_id');
+        }
 
         $query = User::with(['roles', 'outlet']);
         
         // Scope to tenant if tenant_id exists
-        if ($request->user()->tenant_id) {
-            $query->where('tenant_id', $request->user()->tenant_id);
+        if ($currentUser->tenant_id) {
+            $query->where('tenant_id', $currentUser->tenant_id);
         }
 
         if ($outletId) {
             $query->where('outlet_id', $outletId);
         }
 
-        $staff = $query->orderBy('name', 'asc')->get()->map(function ($user) {
+        // Role Owner tidak masuk ke data manager, owner hanya masuk ke staff & role di role owner sendiri
+        if (!$currentUser->hasRole('owner') && !$currentUser->hasRole('superadmin')) {
+            $query->whereDoesntHave('roles', function ($q) {
+                $q->where('name', 'owner');
+            });
+        }
+
+        $staffCollection = $query->orderBy('name', 'asc')->get();
+
+        // Khusus di role manager: store manager selalu jadi primary nomor 1 teratas
+        if ($currentUser->hasRole('store_manager')) {
+            $staffCollection = $staffCollection->sortByDesc(function ($user) {
+                return $user->hasRole('store_manager') ? 1 : 0;
+            })->values();
+        }
+
+        $staff = $staffCollection->map(function ($user) {
             $roleName = $user->roles->first()?->name ?? 'kasir';
             return [
                 'id' => $user->id,
@@ -39,6 +63,7 @@ class StaffController extends Controller
                 'roles' => $user->getRoleNames(),
                 'role' => $roleName,
                 'is_active' => (bool) $user->is_active,
+                'has_pin' => !empty($user->pin),
                 'created_at' => $user->created_at,
             ];
         });
@@ -48,10 +73,17 @@ class StaffController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $currentUser = $request->user();
+
         // Auto-resolve outlet_id if not explicitly provided
-        $outletId = $request->input('outlet_id') ?: $request->user()->outlet_id;
-        if (!$outletId && $request->user()->tenant_id) {
-            $outletId = Outlet::where('tenant_id', $request->user()->tenant_id)->first()?->id;
+        $outletId = $request->input('outlet_id') ?: $currentUser->outlet_id;
+        if (!$outletId && $currentUser->tenant_id) {
+            $outletId = Outlet::where('tenant_id', $currentUser->tenant_id)->first()?->id;
+        }
+
+        // Store Manager can only add staff for their own outlet
+        if ($currentUser->hasRole('store_manager')) {
+            $outletId = $currentUser->outlet_id;
         }
 
         if ($outletId) {
@@ -61,21 +93,41 @@ class StaffController extends Controller
         $request->validate([
             'outlet_id' => ['required', 'uuid', 'exists:outlets,id'],
             'name' => ['required', 'string', 'max:150'],
-            'email' => ['required', 'email', 'max:150', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:6'],
+            'email' => ['nullable', 'email', 'max:150', 'unique:users,email'],
+            'password' => ['nullable', 'string', 'min:6'],
+            'pin' => ['nullable', 'string', 'digits:6'],
             'phone' => ['nullable', 'string', 'max:30'],
-            'role' => ['required', 'string', 'in:kasir,kitchen_staff,owner'],
+            'role' => ['required', 'string', 'in:kasir,kitchen_staff,store_manager,owner'],
         ]);
 
-        $user = User::create([
-            'tenant_id' => $request->user()->tenant_id,
+        // Store Manager hierarchy restriction
+        if ($currentUser->hasRole('store_manager') && !in_array($request->role, ['kasir', 'kitchen_staff'])) {
+            return response()->json([
+                'message' => 'Store Manager hanya memiliki wewenang mengelola staf kasir dan kitchen.'
+            ], 403);
+        }
+
+        $email = $request->filled('email')
+            ? strtolower($request->email)
+            : 'staff_' . Str::slug($request->name) . '_' . Str::lower(Str::random(6)) . '@pos.local';
+
+        $password = $request->filled('password')
+            ? Hash::make($request->password)
+            : Hash::make(Str::random(16));
+
+        $userData = [
+            'tenant_id' => $currentUser->tenant_id,
             'outlet_id' => $request->outlet_id,
             'name' => $request->name,
-            'email' => strtolower($request->email),
-            'password' => Hash::make($request->password),
+            'email' => $email,
+            'password' => $password,
             'phone' => $request->phone,
             'is_active' => true,
-        ]);
+        ];
+        if ($request->filled('pin')) {
+            $userData['pin'] = Hash::make($request->pin);
+        }
+        $user = User::create($userData);
 
         $user->assignRole($request->role);
         $user->load(['roles', 'outlet']);
@@ -92,6 +144,7 @@ class StaffController extends Controller
                 'roles' => $user->getRoleNames(),
                 'role' => $request->role,
                 'is_active' => (bool) $user->is_active,
+                'has_pin' => !empty($user->pin),
                 'created_at' => $user->created_at,
             ],
         ], 201);
@@ -113,6 +166,7 @@ class StaffController extends Controller
                 'roles' => $user->getRoleNames(),
                 'role' => $roleName,
                 'is_active' => (bool) $user->is_active,
+                'has_pin' => !empty($user->pin),
                 'created_at' => $user->created_at,
             ],
         ]);
@@ -120,24 +174,42 @@ class StaffController extends Controller
 
     public function update(Request $request, string $id): JsonResponse
     {
+        $currentUser = $request->user();
         $user = User::findOrFail($id);
 
-        if ($request->user()->tenant_id && $user->tenant_id !== $request->user()->tenant_id) {
+        if ($currentUser->tenant_id && $user->tenant_id !== $currentUser->tenant_id) {
             return response()->json(['message' => 'Tidak diizinkan mengubah staf tenant lain.'], 403);
+        }
+
+        // Store manager cannot modify owner or other store managers
+        if ($currentUser->hasRole('store_manager')) {
+            if ($user->hasRole('owner') || $user->hasRole('store_manager') || $user->outlet_id !== $currentUser->outlet_id) {
+                return response()->json(['message' => 'Tidak diizinkan mengubah akun peran ini.'], 403);
+            }
         }
 
         $request->validate([
             'name' => ['sometimes', 'required', 'string', 'max:150'],
-            'email' => ['sometimes', 'required', 'email', 'max:150', Rule::unique('users', 'email')->ignore($user->id)],
+            'email' => ['nullable', 'email', 'max:150', Rule::unique('users', 'email')->ignore($user->id)],
             'phone' => ['nullable', 'string', 'max:30'],
             'password' => ['nullable', 'string', 'min:6'],
+            'pin' => ['nullable', 'string', 'digits:6'],
             'is_active' => ['nullable', 'boolean'],
-            'role' => ['sometimes', 'required', 'string', 'in:kasir,kitchen_staff,owner'],
+            'role' => ['sometimes', 'required', 'string', 'in:kasir,kitchen_staff,store_manager,owner'],
         ]);
+
+        if ($currentUser->hasRole('store_manager') && $request->filled('role') && !in_array($request->role, ['kasir', 'kitchen_staff'])) {
+            return response()->json([
+                'message' => 'Store Manager hanya memiliki wewenang mengelola staf kasir dan kitchen.'
+            ], 403);
+        }
 
         $updateData = $request->only(['name', 'email', 'phone', 'is_active']);
         if ($request->filled('password')) {
             $updateData['password'] = Hash::make($request->password);
+        }
+        if ($request->has('pin')) {
+            $updateData['pin'] = $request->filled('pin') ? Hash::make($request->pin) : null;
         }
 
         $user->update($updateData);
@@ -161,20 +233,29 @@ class StaffController extends Controller
                 'roles' => $user->getRoleNames(),
                 'role' => $roleName,
                 'is_active' => (bool) $user->is_active,
+                'has_pin' => !empty($user->pin),
             ],
         ]);
     }
 
     public function destroy(Request $request, string $id): JsonResponse
     {
+        $currentUser = $request->user();
         $user = User::findOrFail($id);
 
-        if ($user->id === $request->user()?->id) {
+        if ($user->id === $currentUser?->id) {
             return response()->json(['message' => 'Tidak dapat menghapus akun Anda sendiri.'], 422);
         }
 
-        if ($request->user()->tenant_id && $user->tenant_id !== $request->user()->tenant_id) {
+        if ($currentUser->tenant_id && $user->tenant_id !== $currentUser->tenant_id) {
             return response()->json(['message' => 'Tidak diizinkan.'], 403);
+        }
+
+        // Store manager cannot delete owner or store manager
+        if ($currentUser->hasRole('store_manager')) {
+            if ($user->hasRole('owner') || $user->hasRole('store_manager') || $user->outlet_id !== $currentUser->outlet_id) {
+                return response()->json(['message' => 'Tidak diizinkan menghapus akun ini.'], 403);
+            }
         }
 
         $user->delete();

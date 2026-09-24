@@ -14,13 +14,16 @@ const defaultFoodImage = 'https://images.unsplash.com/photo-1546069901-ba9599a7e
 const { formatCurrency } = useFormat()
 const posStore = usePosStore()
 
-const isLoading = ref(true)
+// Cache-first: Langsung render instan jika data sudah ada di cache store
+const isLoading = ref(posStore.menuItems.length === 0)
 const searchQuery = ref('')
 const selectedCategory = ref('all')
 const selectedStatus = ref<'all' | 'available' | 'unavailable'>('all')
 
 onMounted(async () => {
-  isLoading.value = true
+  if (posStore.menuItems.length === 0) {
+    isLoading.value = true
+  }
   try {
     await Promise.all([
       posStore.fetchMenuItems(),
@@ -101,7 +104,7 @@ const handleImageError = (e: Event) => {
 
 const handleToggle = async (id: string) => {
   try {
-    await posStore.toggleMenuAvailability(id)
+    await posStore.toggleMenuItemAvailability(id)
   } catch (err) {
     console.error('Failed to toggle menu availability:', err)
   }

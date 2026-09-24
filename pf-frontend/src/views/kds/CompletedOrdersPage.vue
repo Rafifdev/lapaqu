@@ -6,26 +6,44 @@ import AppIcon from '@/components/ui/AppIcon.vue'
 import emptyOrderIllustration from '@/assets/empty_state/empty-order.svg'
 
 import { ref } from 'vue'
+import { usePosKdsI18n } from '@/i18n'
+const { t } = usePosKdsI18n()
 const posStore = usePosStore()
-const { formatTimeOnly } = useFormat()
+const { formatTimeOnly, formatCustomerName } = useFormat()
 
-// Completed Orders (Strictly LIFO: Newest completed order first)
+const isToday = (dateStr?: string) => {
+  if (!dateStr) return false
+  const d = new Date(dateStr)
+  const now = new Date()
+  return (
+    d.getDate() === now.getDate() &&
+    d.getMonth() === now.getMonth() &&
+    d.getFullYear() === now.getFullYear()
+  )
+}
+
+// Completed Orders Hari Ini (Strictly LIFO: Newest completed order first)
 const completedOrders = computed(() => {
   return [...posStore.orders]
-    .filter(o => o.status === 'completed' || o.status === 'cancelled' || o.status === 'expired')
+    .filter(
+      o =>
+        (o.status === 'completed' || o.status === 'cancelled' || o.status === 'expired') &&
+        isToday(o.updatedAt || o.createdAt)
+    )
     .sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime())
 })
 
-const hasInitialData = computed(() => completedOrders.value.length > 0)
-const isLoading = ref(!hasInitialData.value)
+const isLoading = ref(false)
 let polling: any = null
 
 const fetchCompletedOrders = async (isBackground = false) => {
-  if (!isBackground && !hasInitialData.value) {
+  if (!isBackground && posStore.orders.length === 0) {
     isLoading.value = true
   }
   try {
     await posStore.fetchOrders()
+  } catch (err) {
+    console.error('Failed to fetch completed orders:', err)
   } finally {
     isLoading.value = false
   }
@@ -36,7 +54,11 @@ const handleKdsRefresh = () => {
 }
 
 onMounted(() => {
-  fetchCompletedOrders(hasInitialData.value)
+  if (posStore.orders.length === 0) {
+    fetchCompletedOrders(false)
+  } else {
+    fetchCompletedOrders(true)
+  }
   posStore.initRealtime()
   polling = setInterval(() => fetchCompletedOrders(true), 4000)
   window.addEventListener('kds:refresh', handleKdsRefresh)
@@ -100,22 +122,26 @@ const getStatusPillConfig = (status: string) => {
 
 <template>
   <div class="h-full flex flex-col min-h-0">
-    <!-- Header: Completed & Cancelled Orders (Fixed at top) -->
+    <!-- Header: Antrean Selesai (Selesai Hari Ini) -->
     <div class="flex items-center justify-between gap-4 mb-4 shrink-0">
-      <h1 class="text-2xl font-bold text-[#202224] dark:text-white">
-        Riwayat Pesanan
-      </h1>
+      <div>
+        <h1 class="text-2xl font-bold text-[#202224] dark:text-white">
+          {{ t('kds.completedTitle', 'Antrean Selesai') }}
+        </h1>
+      </div>
+      <span
+        class="text-xs font-semibold px-3 py-1 rounded-full bg-[#E2E8F0] dark:bg-[#334155] text-[#475569] dark:text-[#CBD5E1]">
+        Hari Ini: {{ completedOrders.length }} Pesanan
+      </span>
     </div>
 
     <!-- Scrollable Content Area: Strictly BELOW Header -->
     <div class="flex-1 overflow-y-auto min-h-0 pr-1 pb-8 [scrollbar-gutter:stable]">
-      <!-- Skeleton Loading State (Mirip persis struktur kartu pesanan riwayat selesai) -->
-      <div v-if="isLoading && completedOrders.length === 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-        <div
-          v-for="n in (completedOrders.length > 0 ? Math.min(completedOrders.length, 4) : 4)"
-          :key="n"
-          class="bg-white dark:bg-[#273142] rounded-[14px] p-6 shadow-[6px_6px_54px_0_rgba(0,0,0,0.05)] dark:shadow-none border border-transparent dark:border-[#313D4F] flex flex-col justify-between animate-pulse"
-        >
+      <!-- Skeleton Loading State: Hanya tampil jika store benar-benar belum memiliki data -->
+      <div v-if="isLoading && posStore.orders.length === 0"
+        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+        <div v-for="n in 4" :key="n"
+          class="bg-white dark:bg-[#273142] rounded-[14px] p-6 shadow-[6px_6px_54px_0_rgba(0,0,0,0.05)] dark:shadow-none border border-transparent dark:border-[#313D4F] flex flex-col justify-between animate-pulse">
           <!-- Top Section Skeleton -->
           <div class="space-y-3.5">
             <!-- Customer Name & Queue Number -->
@@ -165,11 +191,11 @@ const getStatusPillConfig = (status: string) => {
           <img :src="emptyOrderIllustration" alt="Belum Ada Pesanan Selesai"
             class="w-48 h-48 sm:w-56 sm:h-56 md:w-60 md:h-60 lg:w-64 lg:h-64 object-contain drop-shadow-xs" />
         </div>
-        <h3 class="text-xl sm:text-2xl md:text-[26px] font-black text-[#1E293B] dark:text-white tracking-tight">
+        <h3 class="text-lg sm:text-xl md:text-2xl font-bold text-[#1E293B] dark:text-white tracking-tight">
           Whoops! :(
         </h3>
         <p
-          class="text-xs sm:text-base font-medium text-[#64748B] dark:text-[#94A3B8] mt-1.5 max-w-[280px] sm:max-w-xs md:max-w-sm leading-relaxed">
+          class="text-xs sm:text-sm font-medium text-[#64748B] dark:text-[#94A3B8] mt-1.5 max-w-[280px] sm:max-w-xs md:max-w-sm leading-relaxed">
           Belum ada riwayat pesanan saat ini
         </p>
       </div>
@@ -183,7 +209,7 @@ const getStatusPillConfig = (status: string) => {
             <!-- Header: Customer Name & Queue Number -->
             <div class="flex items-start justify-between gap-2">
               <h3 class="text-base font-bold text-[#1E293B] dark:text-white leading-tight truncate">
-                {{ order.customerName || 'Pelanggan Umum' }}
+                {{ formatCustomerName(order.customerName) }}
               </h3>
               <span class="text-sm font-semibold text-[#94A3B8] dark:text-[#64748B] tabular-nums font-mono shrink-0">
                 {{ getShortOrderNumber(order.orderNumber) }}
@@ -218,7 +244,8 @@ const getStatusPillConfig = (status: string) => {
                 <span v-if="order.status === 'expired'" class="text-xs font-bold text-slate-400 dark:text-slate-500">
                   Tidak Dimasak
                 </span>
-                <span v-else-if="order.status === 'cancelled'" class="text-xs font-bold text-[#DC2626] dark:text-[#F87171]">
+                <span v-else-if="order.status === 'cancelled'"
+                  class="text-xs font-bold text-[#DC2626] dark:text-[#F87171]">
                   Tidak Dimasak
                 </span>
                 <span v-else class="text-xs font-bold text-[#16A34A] dark:text-[#4ADE80]">
@@ -232,7 +259,7 @@ const getStatusPillConfig = (status: string) => {
                 <div v-for="item in order.items" :key="item.id"
                   class="flex items-center justify-between gap-2 text-xs md:text-sm text-[#64748B] dark:text-[#CBD5E1]">
                   <span class="truncate pr-2 font-medium flex-1">
-                    {{ item.quantity }}x {{ item.menuItemName || item.name || 'Menu Item' }}
+                    {{ item.quantity }}x {{ item.menuItemName || (item as any).name || 'Menu Item' }}
                   </span>
                   <span class="text-[#16A34A] dark:text-[#4ADE80] flex items-center shrink-0">
                     <AppIcon name="check_circle" :size="16" />
@@ -252,16 +279,13 @@ const getStatusPillConfig = (status: string) => {
               <AppIcon :name="getStatusPillConfig(order.status).icon" :size="14" />
               <span>{{ getStatusPillConfig(order.status).label }}</span>
             </div>
-            <span v-if="order.status === 'ready'"
-              class="text-xs text-[#D97706] dark:text-[#FBBF24] font-bold">
+            <span v-if="order.status === 'ready'" class="text-xs text-[#D97706] dark:text-[#FBBF24] font-bold">
               Belum Diambil
             </span>
-            <span v-else-if="order.status === 'cancelled'"
-              class="text-xs text-[#DC2626] dark:text-[#F87171] font-bold">
+            <span v-else-if="order.status === 'cancelled'" class="text-xs text-[#DC2626] dark:text-[#F87171] font-bold">
               Dibatalkan Kasir
             </span>
-            <span v-else-if="order.status === 'expired'"
-              class="text-xs text-slate-500 dark:text-slate-400 font-bold">
+            <span v-else-if="order.status === 'expired'" class="text-xs text-slate-500 dark:text-slate-400 font-bold">
               Waktu Habis
             </span>
             <span v-else class="text-xs text-[#94A3B8] dark:text-[#64748B] font-semibold">

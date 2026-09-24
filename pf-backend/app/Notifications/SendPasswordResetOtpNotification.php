@@ -25,8 +25,6 @@ class SendPasswordResetOtpNotification extends Notification implements ShouldQue
         $name = $notifiable->name ?? 'Pengguna';
 
         return (new MailMessage)
-            ->mailer('smtp')
-            ->from(config('mail.from.address', 'tolebot1@gmail.com'), config('mail.from.name', 'Lapaqu Platform'))
             ->subject('[Lapaqu Platform] Kode OTP Reset Password Anda')
             ->greeting("Halo, {$name}!")
             ->line('Kami menerima permintaan untuk mereset password akun Anda di Lapaqu Platform.')

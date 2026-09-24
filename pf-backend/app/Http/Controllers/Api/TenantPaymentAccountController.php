@@ -25,6 +25,10 @@ class TenantPaymentAccountController extends Controller
         if (!$account) {
             return response()->json([
                 'is_configured' => false,
+                'balances' => [
+                    'ready_to_settle' => 0,
+                    'pending_settlement' => 0,
+                ],
                 'payment_account' => null,
             ]);
         }
@@ -35,8 +39,24 @@ class TenantPaymentAccountController extends Controller
             ? str_repeat('*', strlen($rawNumber) - 4) . substr($rawNumber, -4)
             : $rawNumber;
 
+        // Calculate live balances from real orders table
+        $totalRevenue = (int) \App\Models\Order::where('tenant_id', $tenant->id)
+            ->where(function ($q) {
+                $q->where('payment_status', 'paid')->orWhere('status', 'completed');
+            })
+            ->whereNotIn('status', ['cancelled', 'voided', 'refunded'])
+            ->sum('final_amount');
+
+        $pendingAmount = (int) \App\Models\Order::where('tenant_id', $tenant->id)
+            ->whereIn('status', ['pending_payment', 'confirmed', 'processing', 'preparing', 'cooking', 'ready'])
+            ->sum('final_amount');
+
         return response()->json([
             'is_configured' => true,
+            'balances' => [
+                'ready_to_settle' => $totalRevenue,
+                'pending_settlement' => $pendingAmount,
+            ],
             'payment_account' => [
                 'id' => $account->id,
                 'bank_code' => $account->bank_code,

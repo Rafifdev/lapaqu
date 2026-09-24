@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import { useNotyf } from '@/composables/useNotyf'
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useFormat } from '@/composables/useFormat'
 import { usePosStore } from '@/stores/pos'
+import { usePosKdsI18n } from '@/i18n'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppModal from '@/components/ui/AppModal.vue'
@@ -14,6 +16,7 @@ import emptyOrderIllustration from '@/assets/empty_state/empty-order.svg'
 const router = useRouter()
 const { formatCurrency } = useFormat()
 const posStore = usePosStore()
+const { t, translate } = usePosKdsI18n()
 
 let pollInterval: any = null
 
@@ -163,16 +166,11 @@ const markAsReady = (order: Order) => {
   posStore.updateOrderStatus(order.id, 'ready')
 }
 
-const isCompleteSuccess = ref(false)
-let successTimer: any = null
+const notyf = useNotyf()
 
 const markAsCompleted = async (order: Order) => {
   await posStore.updateOrderStatus(order.id, 'completed')
-  isCompleteSuccess.value = true
-  if (successTimer) clearTimeout(successTimer)
-  successTimer = setTimeout(() => {
-    isCompleteSuccess.value = false
-  }, 1200)
+  notyf.success('Pesanan berhasil diselesaikan!')
 }
 
 const isCancelModalOpen = ref(false)
@@ -222,14 +220,14 @@ const voidOrderItem = async (order: Order, itemId: string) => {
     <div class="flex items-center justify-between gap-4 mb-4 shrink-0">
       <div>
         <h1 class="text-2xl font-bold text-[#202224] dark:text-white">
-          Order Masuk <span v-if="orders.length > 0" class="text-lg font-normal text-[#64748B] dark:text-[#94A3B8]">({{ orders.length }})</span>
+          {{ t('pos.incomingOrders') }} <span v-if="orders.length > 0" class="text-lg font-normal text-[#64748B] dark:text-[#94A3B8]">({{ orders.length }})</span>
         </h1>
       </div>
 
       <div class="flex items-center gap-3">
         <AppButton @click="router.push('/pos/manual')" variant="primary" size="md" icon="add"
           class="!rounded-lg shadow-sm">
-          Order Manual
+          {{ t('pos.manualOrder') }}
         </AppButton>
       </div>
     </div>
@@ -244,12 +242,12 @@ const voidOrderItem = async (order: Order, itemId: string) => {
           <img :src="emptyOrderIllustration" alt="Tidak Ada Order Masuk"
             class="w-48 h-48 sm:w-56 sm:h-56 md:w-60 md:h-60 lg:w-64 lg:h-64 object-contain drop-shadow-xs" />
         </div>
-        <h3 class="text-xl sm:text-2xl md:text-[26px] font-black text-[#1E293B] dark:text-white tracking-tight">
+        <h3 class="text-lg sm:text-xl md:text-2xl font-bold text-[#1E293B] dark:text-white tracking-tight">
           Whoops! :(
         </h3>
         <p
-          class="text-xs sm:text-base font-medium text-[#64748B] dark:text-[#94A3B8] mt-1.5 max-w-[280px] sm:max-w-xs md:max-w-sm leading-relaxed">
-          Belum ada order masuk saat ini
+          class="text-xs sm:text-sm font-medium text-[#64748B] dark:text-[#94A3B8] mt-1.5 max-w-[280px] sm:max-w-xs md:max-w-sm leading-relaxed">
+          {{ t('pos.emptyTitle') }}
         </p>
       </div>
 
@@ -262,7 +260,7 @@ const voidOrderItem = async (order: Order, itemId: string) => {
             <!-- Header: Customer Name & Queue Number -->
             <div class="flex items-start justify-between gap-2">
               <h3 class="text-base font-bold text-[#1E293B] dark:text-white leading-tight truncate">
-                {{ order.customerName || 'Pelanggan Umum' }}
+                {{ order.customerName || t('pos.generalCustomer') }}
               </h3>
               <span class="text-sm font-semibold text-[#94A3B8] dark:text-[#64748B] tabular-nums font-mono shrink-0">
                 {{ getShortOrderNumber(order.orderNumber) }}
@@ -365,7 +363,7 @@ const voidOrderItem = async (order: Order, itemId: string) => {
           Apakah Anda yakin ingin membatalkan pesanan <span class="font-bold text-[#1E293B] dark:text-white">{{
             getShortOrderNumber(orderToCancel.orderNumber) }}</span>?
         </p>
-        <p class="text-xs text-[#EF3826] font-medium bg-[#EF3826]/10 dark:bg-[#EF3826]/20 p-2.5 rounded-lg">
+        <p class="text-sm text-[#EF3826] font-medium bg-[#EF3826]/10 dark:bg-[#EF3826]/20 p-2.5 rounded-lg">
           Pesanan yang dibatalkan akan otomatis dihapus dari antrean kasir dan dapur.
         </p>
       </div>
@@ -443,17 +441,5 @@ const voidOrderItem = async (order: Order, itemId: string) => {
       </template>
     </AppModal>
 
-    <!-- Success Checkmark Overlay (GPU-Accelerated 60fps Smooth - Motion V) -->
-    <AnimatePresence>
-      <Motion v-if="isCompleteSuccess" :initial="{ opacity: 0 }" :animate="{ opacity: 1 }" :exit="{ opacity: 0 }"
-        :transition="{ duration: 0.18, ease: 'easeOut' }"
-        class="fixed inset-0 z-[99999] flex items-center justify-center pointer-events-none bg-black/45 [transform:translateZ(0)]">
-        <Motion :initial="{ scale: 0.4, rotate: -20, opacity: 0 }" :animate="{ scale: 1, rotate: 0, opacity: 1 }"
-          :exit="{ scale: 0.8, opacity: 0 }" :transition="{ type: 'spring', damping: 14, stiffness: 260 }"
-          class="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-white dark:bg-[#1E293B] shadow-2xl border border-white/20 dark:border-[#334155] flex items-center justify-center text-[#00B69B] [transform:translateZ(0)]">
-          <AppIcon name="check_circle" :size="64" />
-        </Motion>
-      </Motion>
-    </AnimatePresence>
-  </div>
+    </div>
 </template>

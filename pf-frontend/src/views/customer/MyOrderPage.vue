@@ -2,6 +2,8 @@
 import { ref, computed, nextTick, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppIcon from '@/components/ui/AppIcon.vue'
+import AppSpinner from '@/components/ui/AppSpinner.vue'
+import AppSearchInput from '@/components/ui/AppSearchInput.vue'
 import AppBottomActionBar from '@/components/ui/AppBottomActionBar.vue'
 import AppBottomSheetModal from '@/components/ui/AppBottomSheetModal.vue'
 import QRCode from 'qrcode'
@@ -12,13 +14,15 @@ import xenditSvg from '@/assets/xendit.svg'
 import AppButton from '@/components/ui/AppButton.vue'
 import { MAIN_VA_BANKS, OTHER_VA_BANKS, getBankVAInfo } from '@/composables/useBankVA'
 import { useCartStore } from '@/stores/cart'
+import { useCustomerI18n } from '@/i18n'
 import type { CartItem } from '@/types'
 import { useFormat } from '@/composables/useFormat'
 
 const route = useRoute()
 const router = useRouter()
 const cartStore = useCartStore()
-const { formatCurrency } = useFormat()
+const { t, translate } = useCustomerI18n()
+const { formatCurrency, formatNumber } = useFormat()
 
 const formatTitleCase = (str: string) => {
   if (!str) return ''
@@ -31,8 +35,8 @@ const formatTitleCase = (str: string) => {
 
 
 
-const outletId = computed(() => (route.params.outletId as string) || 'outlet-001')
-const tableCode = computed(() => (route.params.tableCode as string) || cartStore.tableCode || 'M03')
+const outletId = computed(() => (route.params.outletId as string) || cartStore.outletId || '')
+const tableCode = computed(() => (route.params.tableCode as string) || cartStore.tableCode || '')
 const menuUrl = computed(() => `/order/${outletId.value}/${tableCode.value}`)
 
 const isLoading = ref(true)
@@ -61,20 +65,22 @@ onMounted(async () => {
         })
       }
       selectedPaymentMethod.value = cartStore.pendingOrder.payment_method || 'qris'
-      const savedExpiry = cartStore.pendingOrder.expires_at || cartStore.pendingOrder.payment?.expiration_date
-      if (savedExpiry) {
-        startQrisTimer(savedExpiry)
-      } else {
-        const isVA = cartStore.pendingOrder.payment_method?.startsWith('va_')
-        const duration = isVA ? 10 * 60 * 1000 : 5 * 60 * 1000
-        const createdAt = cartStore.pendingOrder.created_at ? new Date(cartStore.pendingOrder.created_at).getTime() : Date.now()
-        const fallbackExpiry = new Date(createdAt + duration).toISOString()
-        startQrisTimer(fallbackExpiry)
+      if (selectedPaymentMethod.value !== 'cash') {
+        const savedExpiry = cartStore.pendingOrder.expires_at || cartStore.pendingOrder.payment?.expiration_date
+        if (savedExpiry) {
+          startQrisTimer(savedExpiry)
+        } else {
+          const isVA = cartStore.pendingOrder.payment_method?.startsWith('va_')
+          const duration = isVA ? 10 * 60 * 1000 : 5 * 60 * 1000
+          const createdAt = cartStore.pendingOrder.created_at ? new Date(cartStore.pendingOrder.created_at).getTime() : Date.now()
+          const fallbackExpiry = new Date(createdAt + duration).toISOString()
+          startQrisTimer(fallbackExpiry)
+        }
       }
       startPollingPaymentStatus(cartStore.pendingOrder.id)
 
-      // Jika user klik "Lanjutkan Pembayaran" dari floating cart di halaman menu
-      if (route.query.openQris === '1' || route.query.openQris === 'true') {
+      // Jika user klik "Lanjutkan Pembayaran" dari floating cart di halaman menu atau sedang menunggu kasir
+      if (route.query.openQris === '1' || route.query.openQris === 'true' || selectedPaymentMethod.value === 'cash') {
         isQrisModalOpen.value = true
       }
     } else {
@@ -276,7 +282,7 @@ const transactionDate = computed(() => {
 })
 
 const transactionOrderId = computed(() => {
-  return activeOrder.value?.order_number || activeOrder.value?.id || 'ORD-2026'
+  return activeOrder.value?.order_number || activeOrder.value?.id || ''
 })
 
 const vaOrderSubtotal = computed(() => {
@@ -396,6 +402,12 @@ const isVaPayment = computed(() => {
   const pm = activePayment.value?.payment_method || cartStore.pendingOrder?.payment_method
   if (pm) return pm.startsWith('va_')
   return selectedPaymentMethod.value.startsWith('va_')
+})
+
+const isCashPayment = computed(() => {
+  const pm = activePayment.value?.payment_method || cartStore.pendingOrder?.payment_method
+  if (pm) return pm === 'cash'
+  return selectedPaymentMethod.value === 'cash'
 })
 
 const orderExpiredNotice = ref<string>('')
@@ -561,10 +573,13 @@ const startPollingPaymentStatus = (orderId: string) => {
           }
         }
       }
-      if (res.data?.order?.payment_status === 'paid') {
+      const ord = res.data?.order
+      const isPaidOrAccepted = ord?.payment_status === 'paid' || ['confirmed', 'processing', 'preparing', 'cooking', 'ready', 'completed'].includes(ord?.status)
+      if (isPaidOrAccepted) {
         clearInterval(paymentPollInterval)
-        clearInterval(qrisTimerInterval)
+        if (qrisTimerInterval) clearInterval(qrisTimerInterval)
         paymentSuccess.value = true
+        localStorage.setItem('lapaqu_active_order_id', orderId)
         setTimeout(() => {
           cartStore.clearPendingOrder()
           cartStore.clearCart()
@@ -822,8 +837,8 @@ const navigateToVaInstructions = () => {
   router.push({
     name: 'customer-va-instructions',
     params: {
-      outletId: route.params.outletId || 'outlet-001',
-      tableCode: route.params.tableCode || 'M03',
+      outletId: route.params.outletId || cartStore.outletId || '',
+      tableCode: route.params.tableCode || cartStore.tableCode || '',
     },
     query: {
       bank: bankCode.toLowerCase(),
@@ -866,6 +881,7 @@ const handleSimulatePayment = async () => {
   try {
     await apiClient.post(`/public/orders/${activeOrder.value.id}/simulate-pay`)
     paymentSuccess.value = true
+    localStorage.setItem('lapaqu_active_order_id', activeOrder.value.id)
     clearInterval(paymentPollInterval)
     clearInterval(qrisTimerInterval)
     setTimeout(() => {
@@ -912,11 +928,17 @@ const handleConfirmPayment = async () => {
         .filter(Boolean),
     }))
 
+    const resolvedTableToken =
+      (route.query.token as string) ||
+      localStorage.getItem('lapaqu_table_token') ||
+      tableCode.value ||
+      ''
+
     const res = await apiClient.post(
       '/public/orders',
       {
-        table_token: tableCode.value || 'M03',
-        customer_name: cartStore.customerName || `Pelanggan Meja ${tableCode.value}`,
+        table_token: resolvedTableToken,
+        customer_name: cartStore.customerName.trim() || 'Pelanggan Umum',
         customer_phone: cartStore.customerPhone || null,
         payment_method: selectedPaymentMethod.value,
         notes: null,
@@ -930,7 +952,6 @@ const handleConfirmPayment = async () => {
     )
 
     const { order, payment } = res.data
-    localStorage.setItem('lapaqu_active_order_id', order.id)
 
     isPaymentModalOpen.value = false
 
@@ -986,9 +1007,29 @@ const handleConfirmPayment = async () => {
       startPollingPaymentStatus(order.id)
     } else {
       // Tunai (Cash) / Bayar di Kasir
-      cartStore.clearPendingOrder()
-      cartStore.clearCart()
-      router.push(`${statusUrl.value}?orderId=${order.id}`)
+      activeOrder.value = order
+      activePayment.value = payment
+      paymentSuccess.value = false
+      isQrisModalOpen.value = true
+
+      cartStore.setPendingOrder({
+        id: order.id,
+        order_number: order.order_number,
+        total_amount: order.total_amount,
+        total_items: cartStore.totalItemsCount,
+        payment_method: 'cash',
+        payment,
+        order,
+        created_at: new Date().toISOString(),
+      })
+
+      // Kosongkan keranjang agar item tidak ganda
+      cartStore.items = []
+      try {
+        localStorage.removeItem('lapaqu_pos_cart_state')
+      } catch (e) {}
+
+      startPollingPaymentStatus(order.id)
     }
   } catch (err: any) {
     console.error('Checkout error:', err)
@@ -1002,9 +1043,20 @@ const handleConfirmPayment = async () => {
 <template>
   <!-- 0. SKELETON LOADING STATE (Saat Memuat Pesanan Saya) -->
   <div v-if="isLoading" class="select-none space-y-4 pb-36">
-    <!-- 1. KARTU TUNGGAL SKELETON (ITEMS LIST) -->
-    <div
-      class="bg-white dark:bg-[#273142] rounded-3xl p-4 sm:p-5 shadow-xs divide-y divide-[#F1F5F9] dark:divide-[#334155]">
+    <!-- Grouping Nama & Items dengan gap space-y-3 -->
+    <div class="space-y-3">
+      <div class="h-5 w-36 rounded bg-[#E2E8F0] dark:bg-[#334155] animate-pulse ml-1" />
+      <!-- Skeleton Input Nama (Style Kartu Kode Promo) -->
+      <div class="bg-white dark:bg-[#273142] rounded-3xl p-4 shadow-xs flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3 flex-1">
+          <div class="w-8 h-8 rounded-full bg-[#E2E8F0] dark:bg-[#334155] animate-pulse shrink-0" />
+          <div class="h-4 w-36 rounded bg-[#E2E8F0] dark:bg-[#334155] animate-pulse" />
+        </div>
+      </div>
+
+      <!-- 1. KARTU TUNGGAL SKELETON (ITEMS LIST) -->
+      <div
+        class="bg-white dark:bg-[#273142] rounded-3xl p-4 sm:p-5 shadow-xs divide-y divide-[#F1F5F9] dark:divide-[#334155]">
       <!-- Item Row Skeletons -->
       <div v-for="n in 2" :key="n" class="py-4 first:pt-0 last:pb-4">
         <div class="flex items-start justify-between gap-4">
@@ -1040,6 +1092,7 @@ const handleConfirmPayment = async () => {
         </div>
         <div class="h-9.5 w-32 rounded-full bg-[#E2E8F0] dark:bg-[#334155] animate-pulse shrink-0" />
       </div>
+    </div>
     </div>
 
     <!-- 2. RINGKASAN PEMBAYARAN SKELETON -->
@@ -1134,9 +1187,43 @@ const handleConfirmPayment = async () => {
         </div>
       </div>
 
-      <!-- 1. DAFTAR ITEM PESANAN (KARTU TUNGGAL TERGABUNG SESUAI REFERENSI) -->
-      <div
-        class="bg-white dark:bg-[#273142] rounded-3xl p-4 sm:p-5 shadow-xs transition-colors divide-y divide-[#F1F5F9] dark:divide-[#334155]">
+      <!-- 1. SECTION DAFTAR PESANAN & NAMA (Gap space-y-3 persis seperti promo & rincian harga) -->
+      <div class="space-y-3">
+        <!-- Teks Penjelas Informasi Pesanan -->
+        <h3 v-if="!hasPendingPayment" class="text-sm sm:text-base font-bold text-[#1E293B] dark:text-white px-1">
+          {{ t('orderSummary.title') }}
+        </h3>
+
+        <!-- KARTU NAMA PEMESAN (Posisi di Paling Atas, Style Persis Seperti Kartu Kode Promo) -->
+        <div v-if="!hasPendingPayment" class="bg-white dark:bg-[#273142] rounded-3xl p-4 shadow-xs">
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3 flex-1 min-w-0">
+              <div
+                class="w-8 h-8 rounded-full bg-[#4880FF]/10 dark:bg-[#4880FF]/20 text-[#4880FF] flex items-center justify-center shrink-0">
+                <AppIcon name="person" :size="18" />
+              </div>
+              <input
+                v-model="cartStore.customerName"
+                type="text"
+                placeholder="Nama Pemesan (opsional)"
+                class="w-full bg-transparent text-sm font-semibold text-[#1E293B] dark:text-white placeholder:text-[#94A3B8] outline-none"
+              />
+            </div>
+            <button
+              v-if="cartStore.customerName"
+              type="button"
+              @click="cartStore.customerName = ''"
+              class="p-1 text-[#64748B] hover:text-[#1E293B] dark:text-[#94A3B8] dark:hover:text-white cursor-pointer shrink-0"
+              title="Hapus Nama"
+            >
+              <AppIcon name="close" :size="16" />
+            </button>
+          </div>
+        </div>
+
+        <!-- DAFTAR ITEM PESANAN (KARTU TUNGGAL TERGABUNG SESUAI REFERENSI) -->
+        <div
+          class="bg-white dark:bg-[#273142] rounded-3xl p-4 sm:p-5 shadow-xs transition-colors divide-y divide-[#F1F5F9] dark:divide-[#334155]">
         <!-- List Item Pesanan -->
         <div v-for="item in cartStore.items" :key="item.id" class="py-4 first:pt-0 last:pb-4 transition-colors">
           <!-- Baris Atas: Info Item di Kiri & Foto di Kanan -->
@@ -1220,16 +1307,17 @@ const handleConfirmPayment = async () => {
           </div>
           <button type="button" @click="router.push(menuUrl)"
             class="h-10 px-4 sm:px-5 rounded-full border border-[#4880FF] text-[#4880FF] hover:bg-blue-50 dark:hover:bg-blue-950/40 active:scale-95 text-xs sm:text-sm flex items-center justify-center transition-all shrink-0 cursor-pointer">
-            <span class="font-bold tracking-tight">Tambah Pesanan</span>
+            <span class="font-bold tracking-tight">{{ t('orderSummary.addMoreItems') }}</span>
           </button>
         </div>
+      </div>
       </div>
 
       <!-- 2. SECTION RINGKASAN PEMBAYARAN -->
       <div class="space-y-3">
         <!-- Teks Penjelas Ringkasan Pembayaran -->
         <h3 class="text-sm sm:text-base font-bold text-[#1E293B] dark:text-white px-1">
-          Ringkasan Pembayaran
+          {{ t('orderSummary.summaryTitle') }}
         </h3>
 
         <!-- KARTU KODE PROMO (Di Bawah Teks Ringkasan Pembayaran) -->
@@ -1270,17 +1358,17 @@ const handleConfirmPayment = async () => {
         <!-- KARTU RINCIAN PEMBAYARAN (RINGKASAN BIAYA) -->
         <div class="bg-white dark:bg-[#273142] rounded-3xl p-4 sm:p-6 shadow-xs space-y-3 text-sm">
           <div class="flex items-center justify-between text-[#64748B] dark:text-[#94A3B8]">
-            <span>Total Pesanan</span>
+            <span>{{ t('orderSummary.subtotal') }}</span>
             <span class="font-bold text-[#1E293B] dark:text-white tabular-nums">{{ formatCurrency(subtotal) }}</span>
           </div>
 
           <div class="flex items-center justify-between text-[#64748B] dark:text-[#94A3B8]">
-            <span>Biaya Layanan</span>
+            <span>{{ t('orderSummary.service') }}</span>
             <span class="font-bold text-[#1E293B] dark:text-white tabular-nums">{{ formatCurrency(serviceFee) }}</span>
           </div>
 
           <div class="flex items-center justify-between text-[#64748B] dark:text-[#94A3B8]">
-            <span>Pajak (PB1 10%)</span>
+            <span>{{ t('orderSummary.tax') }}</span>
             <span class="font-bold text-[#1E293B] dark:text-white tabular-nums">{{ formatCurrency(taxFee) }}</span>
           </div>
 
@@ -1294,7 +1382,7 @@ const handleConfirmPayment = async () => {
 
           <!-- Total Keseluruhan -->
           <div class="flex items-center justify-between">
-            <span class="text-base font-bold text-[#1E293B] dark:text-white">Total Keseluruhan</span>
+            <span class="text-base font-bold text-[#1E293B] dark:text-white">{{ t('orderSummary.grandTotal') }}</span>
             <span class="text-lg font-bold text-[#1E293B] dark:text-white tabular-nums tracking-tight">
               {{ formatCurrency(grandTotal) }}
             </span>
@@ -1307,14 +1395,14 @@ const handleConfirmPayment = async () => {
     <AppBottomActionBar
       v-if="cartStore.items.length > 0 || hasPendingPayment"
       :total-price="hasPendingPayment && activeOrder ? activeOrder.total_amount : grandTotal"
-      :button-text="hasPendingPayment ? 'Lanjutkan Pembayaran' : 'Pilih Metode Pembayaran'"
+      :button-text="hasPendingPayment ? t('cart.checkout') : t('orderSummary.selectPayment')"
       :button-variant="hasPendingPayment ? 'warning' : 'primary'"
       :button-icon="hasPendingPayment ? 'arrow_forward' : ''"
       @click="handleBottomDockAction"
     />
 
     <!-- 5. REUSABLE BOTTOM SHEET MODAL METODE PEMBAYARAN -->
-    <AppBottomSheetModal ref="paymentBottomSheetRef" v-model="isPaymentModalOpen" title="Pilih Metode Pembayaran"
+    <AppBottomSheetModal ref="paymentBottomSheetRef" v-model="isPaymentModalOpen" :title="t('orderSummary.selectPayment')"
       :show-close-button="false" height="h-auto max-h-[90dvh]" :modal-style="paymentModalStyle"
       :scrollable="isOtherBankOpen || isScrollingBack || isContentOverflowing">
       <div class="px-6 py-4 space-y-4">
@@ -1507,7 +1595,9 @@ const handleConfirmPayment = async () => {
             'fixed inset-x-0 bottom-0 w-full md:max-w-md mx-auto z-50 rounded-t-3xl shadow-2xl select-none max-h-[90dvh] flex flex-col overflow-hidden overscroll-contain transform-gpu',
             isQrisPayment
               ? 'text-white h-auto'
-              : 'bg-white dark:bg-[#273142] h-[90dvh]'
+              : (isCashPayment
+                ? 'bg-white dark:bg-[#273142] h-auto max-h-[88dvh]'
+                : 'bg-white dark:bg-[#273142] h-[90dvh]')
           ]">
           <!-- Top Drag Handle bar -->
           <div class="pt-3 pb-2 shrink-0 select-none cursor-grab active:cursor-grabbing w-full flex items-center justify-center"
@@ -1518,6 +1608,19 @@ const handleConfirmPayment = async () => {
                 ? 'bg-white/40'
                 : 'bg-[#CBD5E1] dark:bg-[#475569]'
             ]" />
+          </div>
+
+          <!-- Fixed Header Bayar di Kasir (Tunai) -->
+          <div v-if="isCashPayment" class="shrink-0 px-5 pt-1.5 bg-white dark:bg-[#273142]">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <div class="w-8 h-8 rounded-full bg-[#4880FF]/10 dark:bg-[#4880FF]/20 text-[#4880FF] flex items-center justify-center shrink-0">
+                <AppIcon name="payments" :size="20" />
+              </div>
+              <span class="text-sm sm:text-base font-bold text-[#1E293B] dark:text-white truncate">
+                Bayar di Kasir (Tunai)
+              </span>
+            </div>
+            <div class="border-t border-dashed border-slate-200 dark:border-[#334155] mt-4"></div>
           </div>
 
           <!-- Fixed Header Virtual Account (Logo & Nama Bank + Dashed Line, Perfect Pixel, Jarak 2x Lipat ke Nomor VA) -->
@@ -1600,10 +1703,10 @@ const handleConfirmPayment = async () => {
                 <!-- 2. Nama Resto & NMID (Posisi diangkat lebih ke atas) -->
                 <div class="text-center space-y-0.5 mt-4 sm:mt-5">
                   <h3 class="text-base sm:text-lg font-black text-white tracking-tight drop-shadow-xs">
-                    {{ activeOrder.outlet?.name || activeOrder.outletName || 'Lapaqu Cafe' }}
+                    {{ activeOrder.outlet?.name || activeOrder.outletName || '' }}
                   </h3>
                   <p class="text-[11px] font-mono text-white/85 tracking-wider">
-                    NMID : {{ activePayment?.nmid || 'ID10207906A01' }}
+                    NMID : {{ activePayment?.nmid || '' }}
                   </p>
                 </div>
 
@@ -1613,9 +1716,85 @@ const handleConfirmPayment = async () => {
                   <img v-if="qrisDataUrl" :src="qrisDataUrl" alt="QRIS Code" class="w-full h-full object-contain" />
                   <div v-else
                     class="w-full h-full flex flex-col items-center justify-center text-xs text-slate-400 gap-2">
-                    <div class="w-6 h-6 border-2 border-[#4880FF] border-t-transparent rounded-full animate-spin" />
+                    <AppSpinner :size="24" color="text-[#4880FF]" />
                     <span>Memuat QRIS...</span>
                   </div>
+                </div>
+              </div>
+            </template>
+
+            <!-- TAMPILAN JIKA TUNAI (CASH): INSTRUKSI BAYAR DI KASIR -->
+            <template v-else-if="isCashPayment">
+              <div class="pt-3 pb-6 space-y-4">
+                <!-- Kartu Informasi Pesanan & Total -->
+                <div class="p-4 rounded-2xl bg-[#F8FAFC] dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] space-y-3 shadow-xs">
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs text-[#64748B] dark:text-[#94A3B8] font-medium">Nomor Pesanan</span>
+                    <span class="text-xs sm:text-sm font-bold text-[#1E293B] dark:text-white">#{{ activeOrder?.order_number }}</span>
+                  </div>
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs text-[#64748B] dark:text-[#94A3B8] font-medium">Nomor Meja</span>
+                    <span class="text-xs sm:text-sm font-bold text-[#1E293B] dark:text-white">Meja {{ tableCode }}</span>
+                  </div>
+                  <div class="border-t border-dashed border-slate-200 dark:border-[#334155]"></div>
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs sm:text-sm font-semibold text-[#64748B] dark:text-[#94A3B8]">Total Pembayaran</span>
+                    <span class="text-base sm:text-lg font-black text-[#4880FF]">Rp {{ formatNumber(activeOrder?.total_amount || 0) }}</span>
+                  </div>
+                </div>
+
+                <!-- Box Petunjuk Kasir -->
+                <div class="p-3.5 rounded-2xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900/40 flex items-start gap-3 shadow-xs">
+                  <div class="w-8 h-8 rounded-full bg-[#4880FF] text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+                    <AppIcon name="storefront" :size="18" />
+                  </div>
+                  <div class="text-xs text-[#1E293B] dark:text-slate-200 space-y-1">
+                    <p class="font-bold text-[#4880FF]">Silakan Menuju ke Kasir</p>
+                    <p class="text-slate-600 dark:text-slate-300 leading-relaxed">
+                      Sebutkan nomor pesanan <strong>#{{ activeOrder?.order_number }}</strong> atau <strong>Meja {{ tableCode }}</strong> kepada kasir untuk membayar tunai.
+                    </p>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400">
+                      *Pesanan akan otomatis diproses dapur setelah kasir mengonfirmasi pembayaran Anda.
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Status Live Polling Kasir -->
+                <div class="p-3.5 rounded-2xl bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] flex items-center justify-between shadow-xs">
+                  <div class="flex items-center gap-3">
+                    <div class="w-7 h-7 flex items-center justify-center shrink-0">
+                      <AppSpinner :size="20" color="text-[#4880FF]" />
+                    </div>
+                    <div>
+                      <span class="text-xs text-[#64748B] dark:text-[#94A3B8] font-medium block leading-none">Status</span>
+                      <span class="text-xs sm:text-sm font-bold text-[#1E293B] dark:text-white mt-1 block leading-tight">Menunggu Konfirmasi Kasir</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Tombol Aksi: Simulasi Bayar (Sandbox) & Batalin Pesanan -->
+                <div class="space-y-2 pt-1">
+                  <button
+                    type="button"
+                    :disabled="isSimulating || paymentSuccess"
+                    @click="handleSimulatePayment"
+                    class="w-full h-11 rounded-full bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] disabled:opacity-50 text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  >
+                    <AppIcon name="bolt" :size="18" />
+                    <span v-if="!isSimulating">Simulasikan Konfirmasi Kasir (Sandbox)</span>
+                    <span v-else>Memproses Konfirmasi Kasir...</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    :disabled="isCancelling || paymentSuccess"
+                    @click="handleCancelTransfer"
+                    class="w-full h-11 rounded-full bg-[#EF3826] hover:bg-red-600 active:scale-[0.98] disabled:opacity-60 text-white font-bold text-xs sm:text-sm shadow-md shadow-red-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  >
+                    <AppSpinner v-if="isCancelling" :size="16" color="text-white" />
+                    <AppIcon v-else name="close" :size="18" />
+                    <span>{{ isCancelling ? 'Membatalkan...' : 'Batalin Pesanan' }}</span>
+                  </button>
                 </div>
               </div>
             </template>
@@ -1692,10 +1871,7 @@ const handleConfirmPayment = async () => {
                     <div class="flex items-center gap-3">
                       <!-- Spinner Loading -->
                       <div class="w-7 h-7 flex items-center justify-center shrink-0">
-                        <svg class="animate-spin w-5 h-5 text-[#4880FF]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
+<AppSpinner :size="20" color="text-[#4880FF]" />
                       </div>
                       <div>
                         <span class="text-xs text-[#64748B] dark:text-[#94A3B8] font-medium block leading-none">Status</span>
@@ -1915,7 +2091,7 @@ const handleConfirmPayment = async () => {
                   <!-- Tombol Batalin Transfer (Warna Danger) -->
                   <button type="button" :disabled="isCancelling || paymentSuccess" @click="handleCancelTransfer"
                     class="w-full h-11 rounded-full bg-[#EF3826] hover:bg-red-600 active:scale-[0.98] disabled:opacity-60 text-white font-bold text-xs sm:text-sm shadow-md shadow-red-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer">
-                    <div v-if="isCancelling" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <AppSpinner v-if="isCancelling" :size="16" color="text-white" />
                     <AppIcon v-else name="close" :size="18" />
                     <span>{{ isCancelling ? 'Membatalkan Transfer...' : 'Batalin Transfer' }}</span>
                   </button>
@@ -1972,7 +2148,7 @@ const handleConfirmPayment = async () => {
             <div class="pt-3">
               <button type="button" :disabled="isCancelling || paymentSuccess" @click="handleCancelTransfer"
                 class="w-full h-11 rounded-full bg-[#EF3826] hover:bg-red-600 active:scale-[0.98] disabled:opacity-60 text-white font-bold text-xs sm:text-sm shadow-md shadow-red-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer">
-                <div v-if="isCancelling" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <AppSpinner v-if="isCancelling" :size="16" color="text-white" />
                 <AppIcon v-else name="close" :size="18" />
                 <span>{{ isCancelling ? 'Membatalkan...' : 'Batalin Pesanan' }}</span>
               </button>

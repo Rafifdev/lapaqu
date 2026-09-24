@@ -391,7 +391,7 @@ const handleDelete = async () => {
           Apakah Anda yakin ingin menghapus kategori <span class="font-bold text-[#1E293B] dark:text-white">{{
             categoryToDelete.name }}</span>?
         </p>
-        <p class="text-xs text-[#EF4444] bg-[#EF4444]/10 dark:bg-[#EF4444]/20 p-2.5 rounded-lg font-medium">
+        <p class="text-sm text-[#EF4444] bg-[#EF4444]/10 dark:bg-[#EF4444]/20 p-2.5 rounded-lg font-medium">
           Kategori yang dihapus tidak dapat dipulihkan. Menu yang ada di dalam kategori ini tidak akan memiliki kategori
           lagi.
         </p>

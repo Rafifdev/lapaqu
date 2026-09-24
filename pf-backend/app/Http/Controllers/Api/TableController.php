@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Table;
+use App\Models\Outlet;
 use BaconQrCode\Renderer\Image\SvgImageBackEnd;
 use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
@@ -17,11 +18,34 @@ class TableController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $outletId = $request->query('outlet_id', $request->user()->outlet_id);
+        $outletId = $request->query('outlet_id', $request->user()?->outlet_id);
 
-        $query = Table::query();
+        $outlet = null;
         if ($outletId) {
-            $query->where('outlet_id', $outletId);
+            $outlet = Outlet::withoutGlobalScopes()->find($outletId);
+        }
+        if (!$outlet && $request->user()?->tenant_id) {
+            $outlet = Outlet::withoutGlobalScopes()->where('tenant_id', $request->user()->tenant_id)->first();
+            $outletId = $outlet?->id;
+        }
+        if (!$outlet) {
+            $outlet = Outlet::withoutGlobalScopes()->whereHas('tables')->first()
+                   ?: Outlet::withoutGlobalScopes()->first();
+            $outletId = $outlet?->id;
+        }
+
+        $tenantId = $outlet?->tenant_id ?: ($request->user()?->tenant_id ?: (app()->bound('tenant_id') ? app('tenant_id') : null));
+
+        $query = Table::withoutGlobalScopes();
+        if ($outletId) {
+            $hasOutletTables = Table::withoutGlobalScopes()->where('outlet_id', $outletId)->exists();
+            if ($hasOutletTables) {
+                $query->where('outlet_id', $outletId);
+            } elseif ($tenantId) {
+                $query->where('tenant_id', $tenantId);
+            }
+        } elseif ($tenantId) {
+            $query->where('tenant_id', $tenantId);
         }
 
         $tables = $query->orderBy('table_number', 'asc')

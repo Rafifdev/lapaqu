@@ -98,6 +98,21 @@ class DemoTenantSeeder extends Seeder
             ]
         );
         $owner->syncRoles(['owner']);
+        // Seed Store Manager
+        $manager = User::firstOrCreate(
+            ['email' => 'manager@kopisenopati.id'],
+            [
+                'tenant_id' => $tenant->id,
+                'outlet_id' => $outlet->id,
+                'name' => 'Dimas (Store Manager)',
+                'password' => Hash::make('RahasiaKopi123!'),
+                'pin' => Hash::make('123456'),
+                'phone' => '081234567893',
+                'is_active' => true,
+            ]
+        );
+        $manager->syncRoles(['store_manager']);
+
 
         $kasir = User::firstOrCreate(
             ['email' => 'kasir@kopisenopati.id'],
@@ -106,6 +121,7 @@ class DemoTenantSeeder extends Seeder
                 'outlet_id' => $outlet->id,
                 'name' => 'Siti Kasir',
                 'password' => Hash::make('RahasiaKopi123!'),
+                'pin' => Hash::make('123456'),
                 'phone' => '081234567891',
                 'is_active' => true,
             ]
@@ -119,6 +135,7 @@ class DemoTenantSeeder extends Seeder
                 'outlet_id' => $outlet->id,
                 'name' => 'Chef Arnold (Kitchen)',
                 'password' => Hash::make('RahasiaKopi123!'),
+                'pin' => Hash::make('123456'),
                 'phone' => '081234567892',
                 'is_active' => true,
             ]

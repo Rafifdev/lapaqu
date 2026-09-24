@@ -8,12 +8,19 @@ interface Props {
   modelValue?: boolean
   title?: string
   maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl'
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl'
+  footerBorder?: boolean
+  contentClass?: string
+  footerClass?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   show: undefined,
   modelValue: undefined,
   maxWidth: 'md',
+  footerBorder: true,
+  contentClass: '',
+  footerClass: '',
 })
 
 const emit = defineEmits<{
@@ -63,7 +70,7 @@ const maxWidthClasses = {
           :transition="{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }"
           :class="[
             'w-full bg-white dark:bg-[#273142] rounded-2xl shadow-2xl border border-[#E2E8F0] dark:border-[#334155] ring-1 ring-black/[0.05] dark:ring-white/10 overflow-hidden [transform:translateZ(0)]',
-            maxWidthClasses[maxWidth],
+            maxWidthClasses[props.size || maxWidth],
           ]"
         >
           <!-- Header -->
@@ -86,14 +93,18 @@ const maxWidthClasses = {
           </div>
 
           <!-- Content -->
-          <div class="p-5 max-h-[85vh] overflow-y-auto">
+          <div :class="['p-5 max-h-[85vh] overflow-y-auto text-sm', contentClass]">
             <slot />
           </div>
 
           <!-- Footer -->
           <div
             v-if="$slots.footer"
-            class="flex items-center justify-end gap-3 p-5 border-t border-[#F1F5F9] dark:border-[#334155]"
+            :class="[
+              'flex items-center justify-end gap-3 p-5',
+              footerBorder ? 'border-t border-[#F1F5F9] dark:border-[#334155]' : 'border-t-0',
+              footerClass
+            ]"
           >
             <slot name="footer" />
           </div>

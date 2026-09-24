@@ -1,6 +1,8 @@
-<script setup lang="ts">
+<script setup lang="ts" generic="T extends Record<string, any> = Record<string, any>">
 import { ref, computed, watch } from 'vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
+import AppPagination from '@/components/ui/AppPagination.vue'
+import { useDashboardI18n } from '@/i18n'
 import defaultEmptyIllustration from '@/assets/empty_state/empty-order.svg'
 
 export interface TableColumn {
@@ -13,7 +15,7 @@ export interface TableColumn {
 
 interface Props {
   columns: TableColumn[]
-  data: Record<string, any>[]
+  data: T[]
   title?: string
   subtitle?: string
   pageSize?: number
@@ -25,6 +27,7 @@ interface Props {
   showNumbering?: boolean
   numberingLabel?: string
   loading?: boolean
+  syncing?: boolean
   skeletonRows?: number
   scrollable?: boolean
   maxHeight?: string
@@ -43,11 +46,14 @@ const props = withDefaults(defineProps<Props>(), {
   showNumbering: false,
   numberingLabel: 'No',
   loading: false,
+  syncing: false,
   skeletonRows: 6,
   scrollable: true,
   maxHeight: 'max-h-[calc(100vh-290px)]',
   minHeight: 'min-h-[420px]',
 })
+
+const { t } = useDashboardI18n()
 
 const emit = defineEmits<{
   (e: 'row-click', row: any): void
@@ -69,7 +75,11 @@ const filteredData = computed(() => {
   })
 })
 
-// Empty subtitle computed
+// Empty title & subtitle computed
+const computedEmptyTitle = computed(() => {
+  if (props.emptyTitle && props.emptyTitle !== 'Whoops! :(') return props.emptyTitle
+  return t('common.noDataFound', 'Data Tidak Ditemukan')
+})
 // Skeleton logic: show skeleton whenever loading is true
 const showSkeleton = computed(() => {
   return props.loading
@@ -147,14 +157,24 @@ const visiblePages = computed(() => {
         </slot>
       </div>
 
-      <div class="flex items-center gap-3 w-full sm:w-auto">
+      <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+        <svg
+          v-if="syncing"
+          class="animate-spin w-5 h-5 text-[#4880FF] shrink-0"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
         <!-- Search Input -->
         <div v-if="searchable" class="relative flex-1 sm:w-64">
           <input
             v-model="searchQuery"
             type="text"
             :placeholder="searchPlaceholder"
-            class="w-full bg-[#F5F6FA] dark:bg-[#1B2431] border border-[#E8E8E8] dark:border-[#313D4F] rounded-xl pl-9 pr-3.5 py-2 text-xs font-semibold text-[#202224] dark:text-white placeholder-[#94A3B8] focus:outline-none transition-all"
+            class="w-full bg-[#F5F6FA] dark:bg-[#1B2431] border border-[#E8E8E8] dark:border-[#313D4F] rounded-xl pl-9 pr-3.5 py-2 text-xs font-semibold text-[#202224] dark:text-white placeholder-[#94A3B8] placeholder:font-normal focus:outline-none transition-all"
           />
           <div class="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8] pointer-events-none flex items-center">
             <AppIcon name="search" :size="16" />
@@ -180,10 +200,10 @@ const visiblePages = computed(() => {
         minHeight || 'min-h-[420px]',
       ]"
     >
-      <table class="w-full text-left border-collapse">
+      <table class="w-full text-left border-separate border-spacing-0">
         <!-- Table Header (Sticky) -->
-        <thead class="sticky top-0 z-10 bg-[#F1F4F9] dark:bg-[#323D4E]">
-          <tr class="bg-[#F1F4F9] dark:bg-[#323D4E] text-sm font-bold text-[#202224] dark:text-white">
+        <thead class="sticky top-0 z-10">
+          <tr class="text-sm font-bold text-[#202224] dark:text-white">
             <!-- Optional Numbering Column -->
             <th v-if="showNumbering" class="py-3.5 px-4 rounded-l-xl text-center w-14 bg-[#F1F4F9] dark:bg-[#323D4E]">
               {{ numberingLabel }}
@@ -210,7 +230,7 @@ const visiblePages = computed(() => {
         </thead>
 
         <!-- Table Body -->
-        <tbody class="divide-y divide-[#E8E8E8] dark:divide-[#313D4F] text-sm">
+        <tbody class="divide-y divide-[#E8E8E8] dark:divide-[#313D4F] [&_tr>td]:border-b [&_tr>td]:border-[#E8E8E8] dark:[&_tr>td]:border-[#313D4F] [&_tr:last-child>td]:border-b-0 text-sm">
           <!-- 1. Skeleton Loading State (Only if loading and there is data) -->
           <template v-if="showSkeleton">
             <tr
@@ -343,15 +363,15 @@ const visiblePages = computed(() => {
                   <div class="relative flex items-center justify-center mb-4 sm:mb-5 pointer-events-none">
                     <img
                       :src="emptyIllustration || defaultEmptyIllustration"
-                      :alt="emptyTitle"
+                      :alt="computedEmptyTitle"
                       class="w-48 h-48 sm:w-56 sm:h-56 md:w-60 md:h-60 lg:w-64 lg:h-64 object-contain drop-shadow-xs"
                     />
                   </div>
-                  <h3 class="text-xl sm:text-2xl md:text-[26px] font-black text-[#1E293B] dark:text-white tracking-tight">
-                    {{ emptyTitle }}
+                  <h3 class="text-lg sm:text-xl md:text-2xl font-bold text-[#1E293B] dark:text-white tracking-tight">
+                    {{ computedEmptyTitle }}
                   </h3>
                   <p
-                    class="text-xs sm:text-base font-medium text-[#64748B] dark:text-[#94A3B8] mt-1.5 max-w-[280px] sm:max-w-xs md:max-w-sm leading-relaxed"
+                    class="text-xs sm:text-sm font-medium text-[#64748B] dark:text-[#94A3B8] mt-1.5 max-w-[280px] sm:max-w-xs md:max-w-sm leading-relaxed"
                   >
                     {{ computedEmptySubtitle }}
                   </p>
@@ -384,73 +404,29 @@ const visiblePages = computed(() => {
       <!-- Result count -->
       <p class="text-xs font-semibold text-[#64748B] dark:text-[#94A3B8]">
         <template v-if="filteredData.length > 0">
-          Menampilkan
+          {{ t('common.showing', 'Menampilkan') }}
           <span class="font-bold text-[#202224] dark:text-white">
             {{ (currentPage - 1) * pageSize + 1 }}-{{ Math.min(currentPage * pageSize, filteredData.length) }}
           </span>
-          dari
+          {{ t('common.of', 'dari') }}
           <span class="font-bold text-[#202224] dark:text-white">{{ filteredData.length }}</span>
-          data
+          {{ t('common.data', 'data') }}
         </template>
         <template v-else>
-          Menampilkan <span class="font-bold text-[#202224] dark:text-white">0</span> data
+          {{ t('common.showing', 'Menampilkan') }} <span class="font-bold text-[#202224] dark:text-white">0</span> {{ t('common.data', 'data') }}
         </template>
       </p>
 
-      <!-- Pagination Page Buttons -->
-      <div v-if="filteredData.length > 0" class="flex items-center gap-1.5">
-        <!-- Previous Button -->
-        <button
-          type="button"
-          @click="goToPage(currentPage - 1)"
-          :disabled="currentPage === 1"
-          :class="[
-            'h-8 w-8 rounded-lg flex items-center justify-center border text-xs font-bold transition-colors cursor-pointer',
-            currentPage === 1
-              ? 'border-[#E2E8F0] dark:border-[#313D4F] text-[#CBD5E1] dark:text-[#475569] cursor-not-allowed opacity-50'
-              : 'border-[#E2E8F0] dark:border-[#313D4F] text-[#475569] dark:text-[#CBD5E1] hover:bg-[#F8FAFC] dark:hover:bg-[#334155] hover:text-[#4880FF]',
-          ]"
-          title="Halaman Sebelumnya"
-        >
-          <AppIcon name="chevron_left" :size="16" />
-        </button>
-
-        <!-- Numbered Page Buttons -->
-        <template v-for="(p, idx) in visiblePages" :key="idx">
-          <span v-if="p === '...'" class="h-8 px-2 flex items-center justify-center text-xs font-bold text-[#94A3B8]">
-            ...
-          </span>
-          <button
-            v-else
-            type="button"
-            @click="goToPage(p)"
-            :class="[
-              'h-8 min-w-[32px] px-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center',
-              currentPage === p
-                ? 'bg-[#4880FF] text-white shadow-sm font-black'
-                : 'border border-[#E2E8F0] dark:border-[#313D4F] text-[#475569] dark:text-[#CBD5E1] hover:bg-[#F8FAFC] dark:hover:bg-[#334155] hover:text-[#4880FF]',
-            ]"
-          >
-            {{ p }}
-          </button>
-        </template>
-
-        <!-- Next Button -->
-        <button
-          type="button"
-          @click="goToPage(currentPage + 1)"
-          :disabled="currentPage === totalPages"
-          :class="[
-            'h-8 w-8 rounded-lg flex items-center justify-center border text-xs font-bold transition-colors cursor-pointer',
-            currentPage === totalPages
-              ? 'border-[#E2E8F0] dark:border-[#313D4F] text-[#CBD5E1] dark:text-[#475569] cursor-not-allowed opacity-50'
-              : 'border-[#E2E8F0] dark:border-[#313D4F] text-[#475569] dark:text-[#CBD5E1] hover:bg-[#F8FAFC] dark:hover:bg-[#334155] hover:text-[#4880FF]',
-          ]"
-          title="Halaman Berikutnya"
-        >
-          <AppIcon name="chevron_right" :size="16" />
-        </button>
-      </div>
+      <!-- shadcn/ui Pagination Component -->
+      <AppPagination
+        v-if="filteredData.length > 0"
+        v-model="currentPage"
+        :total="filteredData.length"
+        :pageSize="pageSize"
+        :previousLabel="t('common.prev', 'Previous')"
+        :nextLabel="t('common.next', 'Next')"
+        size="sm"
+      />
       <div v-else class="h-8"></div>
     </div>
   </div>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppPageTransition from '@/components/ui/AppPageTransition.vue'
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -6,11 +7,13 @@ import { usePosStore } from '@/stores/pos'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppButton from '@/components/ui/AppButton.vue'
+import { usePosKdsI18n } from '@/i18n'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 const posStore = usePosStore()
+const { t, translate } = usePosKdsI18n()
 const incomingCount = computed(() => posStore.incomingOrders.length)
 
 const isDark = ref(document.documentElement.classList.contains('dark'))
@@ -113,7 +116,7 @@ const handleLogout = () => {
           v-if="authStore.isOwner"
           to="/dashboard"
           class="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-[#475569] dark:text-[#CBD5E1] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] hover:text-[#4880FF] transition-colors cursor-pointer"
-          title="Kembali ke Dashboard"
+          :title="t('pos.backToDashboard')"
         >
           <AppIcon name="arrow_back" :size="20" />
         </router-link>
@@ -143,7 +146,7 @@ const handleLogout = () => {
               : 'text-[#475569] dark:text-[#CBD5E1] hover:text-[#4880FF]',
           ]">
             <AppIcon name="receipt_long" :size="16" class="shrink-0" />
-            <span>Order Masuk <span v-if="incomingCount > 0">({{ incomingCount }})</span></span>
+            <span>{{ t('pos.incomingOrders') }} <span v-if="incomingCount > 0">({{ incomingCount }})</span></span>
           </router-link>
 
           <router-link to="/pos/manual" :data-active="route.path === '/pos/manual'" :class="[
@@ -153,7 +156,7 @@ const handleLogout = () => {
               : 'text-[#475569] dark:text-[#CBD5E1] hover:text-[#4880FF]',
           ]">
             <AppIcon name="add_circle" :size="16" class="shrink-0" />
-            <span>Order Manual</span>
+            <span>{{ t('pos.manualOrder') }}</span>
           </router-link>
 
           <router-link to="/pos/tables" :data-active="route.path === '/pos/tables'" :class="[
@@ -163,7 +166,7 @@ const handleLogout = () => {
               : 'text-[#475569] dark:text-[#CBD5E1] hover:text-[#4880FF]',
           ]">
             <AppIcon name="table_restaurant" :size="16" class="shrink-0" />
-            <span>Manage Table</span>
+            <span>{{ t('pos.manageTable') }}</span>
           </router-link>
 
           <router-link to="/pos/history" :data-active="route.path === '/pos/history'" :class="[
@@ -173,7 +176,7 @@ const handleLogout = () => {
               : 'text-[#475569] dark:text-[#CBD5E1] hover:text-[#4880FF]',
           ]">
             <AppIcon name="history" :size="16" class="shrink-0" />
-            <span>Riwayat Order</span>
+            <span>{{ t('pos.orderHistory') }}</span>
           </router-link>
 
           <router-link to="/pos/quick-toggle" :data-active="route.path === '/pos/quick-toggle'" :class="[
@@ -183,7 +186,7 @@ const handleLogout = () => {
               : 'text-[#475569] dark:text-[#CBD5E1] hover:text-[#4880FF]',
           ]">
             <AppIcon name="toggle_on" :size="16" class="shrink-0" />
-            <span>Quick Stok</span>
+            <span>{{ t('pos.quickStock') }}</span>
           </router-link>
         </nav>
       </div>
@@ -193,14 +196,14 @@ const handleLogout = () => {
         <!-- Refresh Button (Circle Button on Left of Theme Switch) -->
         <button @click="handleRefresh"
           class="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-[#475569] dark:text-[#CBD5E1] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] hover:text-[#4880FF] transition-colors cursor-pointer"
-          title="Refresh Data Kasir">
+          :title="t('pos.refreshTitle')">
           <AppIcon name="refresh" :size="18" :class="{ 'animate-spin': isRefreshing }" />
         </button>
 
         <!-- Dark/Light Mode Switch -->
         <button @click="toggleTheme"
           class="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-[#475569] dark:text-[#CBD5E1] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] transition-colors cursor-pointer"
-          title="Ganti Tema">
+          :title="t('pos.themeTitle')">
           <AppIcon v-if="isDark" name="light_mode" :size="18" class="text-[#FBBF24]" />
           <AppIcon v-else name="dark_mode" :size="18" />
         </button>
@@ -208,41 +211,39 @@ const handleLogout = () => {
         <!-- Logout Button (Icon Only) -->
         <button @click="isLogoutModalOpen = true"
           class="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-[#FD5454] hover:bg-[#FFEBEB] dark:hover:bg-[#FD5454]/15 transition-colors cursor-pointer"
-          title="Keluar Akun">
+          :title="t('pos.logoutTitle')">
           <AppIcon name="logout" :size="18" />
         </button>
       </div>
     </header>
 
     <!-- Main Content Area: 100% full height of remaining screen -->
-    <main class="flex-1 p-3 sm:p-4 md:p-6 overflow-hidden flex flex-col min-h-0">
+    <main class="flex-1 p-3 sm:p-4 md:p-6 pb-1.5 sm:pb-2 md:pb-2 overflow-hidden flex flex-col min-h-0">
       <router-view v-slot="{ Component, route }">
-        <transition name="page-fade" mode="out-in">
-          <component :is="Component" :key="route.path" />
-        </transition>
+        <AppPageTransition :component="Component" :route="route" />
       </router-view>
     </main>
 
     <!-- Alert Modal: Konfirmasi Keluar POS -->
-    <AppModal v-model="isLogoutModalOpen" title="Konfirmasi Keluar" maxWidth="sm">
+    <AppModal v-model="isLogoutModalOpen" :title="t('pos.logoutModalTitle')" maxWidth="sm">
       <div class="space-y-3 py-2 text-center">
         <div
           class="w-14 h-14 rounded-full bg-rose-50 dark:bg-rose-950/40 text-[#FD5454] flex items-center justify-center mx-auto mb-2">
           <AppIcon name="logout" :size="28" />
         </div>
-        <h3 class="text-base font-bold text-[#202224] dark:text-white">Keluar dari Kasir POS?</h3>
-        <p class="text-xs text-[#64748B] dark:text-[#94A3B8]">
-          Sesi aktif kasir Anda akan diakhiri. Anda perlu login kembali untuk mengakses sistem kasir.
+        <h3 class="text-base font-bold text-[#202224] dark:text-white">{{ t('pos.logoutModalTitle') }}</h3>
+        <p class="text-sm text-[#64748B] dark:text-[#94A3B8]">
+          {{ t('pos.logoutModalDesc') }}
         </p>
       </div>
       <template #footer>
         <div class="flex items-center justify-end gap-3 w-full">
-          <AppButton variant="outline" size="sm" @click="isLogoutModalOpen = false" class="!rounded-lg flex-1">
-            Batal
+          <AppButton variant="outline" size="md" @click="isLogoutModalOpen = false" class="!rounded-lg flex-1">
+            {{ t('pos.cancel') }}
           </AppButton>
-          <AppButton variant="primary" size="sm" @click="handleLogout"
+          <AppButton variant="primary" size="md" @click="handleLogout"
             class="!rounded-lg flex-1 !bg-[#FD5454] !text-white hover:!bg-[#E03E3E] !border-[#FD5454]">
-            Ya, Keluar
+            {{ t('pos.yesLogout') }}
           </AppButton>
         </div>
       </template>

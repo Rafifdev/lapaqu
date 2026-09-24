@@ -24,17 +24,23 @@ class User extends Authenticatable implements FilamentUser
         'outlet_id',
         'name',
         'email',
+        'google_id',
+        'facebook_id',
+        'avatar',
         'password',
         'phone',
         'two_factor_secret',
         'two_factor_confirmed_at',
+        'pin',
         'is_active',
+        'notification_preferences',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
         'two_factor_secret',
+        'pin',
     ];
 
     protected function casts(): array
@@ -45,6 +51,7 @@ class User extends Authenticatable implements FilamentUser
             'two_factor_secret' => 'encrypted',
             'two_factor_confirmed_at' => 'datetime',
             'is_active' => 'boolean',
+            'notification_preferences' => 'array',
         ];
     }
 

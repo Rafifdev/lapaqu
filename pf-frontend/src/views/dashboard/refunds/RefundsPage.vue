@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { MoreVertical, CheckCircle, XCircle, Search, AlertCircle, RefreshCw } from 'lucide-vue-next'
 import { useFormat } from '@/composables/useFormat'
+import { useDashboardI18n } from '@/i18n'
 import { useAuthStore } from '@/stores/auth'
 import apiClient from '@/services/api'
 import AppTable from '@/components/ui/AppTable.vue'
@@ -28,6 +29,7 @@ interface RefundRecord {
 
 const authStore = useAuthStore()
 const { formatCurrency } = useFormat()
+const { t, translate, locale } = useDashboardI18n()
 const refunds = ref<RefundRecord[]>([])
 const isLoading = ref(true)
 const isSubmitting = ref(false)
@@ -36,21 +38,21 @@ const isSubmitting = ref(false)
 const searchQuery = ref('')
 const selectedStatusFilter = ref('all')
 
-const statusOptions = [
-  { value: 'all', label: 'Semua Status' },
-  { value: 'pending', label: 'Menunggu Persetujuan' },
-  { value: 'approved', label: 'Disetujui' },
-  { value: 'rejected', label: 'Ditolak' },
-]
+const statusOptions = computed(() => [
+  { value: 'all', label: locale.value === 'en' ? 'All Statuses' : 'Semua Status' },
+  { value: 'pending', label: t('refunds.filterPending', 'Menunggu Persetujuan') },
+  { value: 'approved', label: t('refunds.filterApproved', 'Disetujui') },
+  { value: 'rejected', label: t('refunds.filterRejected', 'Ditolak') },
+])
 
-const columns = [
-  { key: 'orderNumber', label: 'ID Order', width: '20%' },
-  { key: 'amount', label: 'Nominal', align: 'right' as const, width: '16%' },
-  { key: 'reason', label: 'Alasan Komplain', width: '26%' },
-  { key: 'requestedBy', label: 'Diajukan Oleh', width: '16%' },
-  { key: 'status', label: 'Status', align: 'center' as const, width: '12%' },
-  { key: 'actions', label: 'Aksi', align: 'center' as const, width: '10%' },
-]
+const columns = computed(() => [
+  { key: 'orderNumber', label: t('refunds.colOrder', 'ID Order'), width: '20%' },
+  { key: 'amount', label: t('refunds.colAmount', 'Nominal'), align: 'right' as const, width: '16%' },
+  { key: 'reason', label: t('refunds.colReason', 'Alasan Komplain'), width: '26%' },
+  { key: 'requestedBy', label: t('refunds.colRequestedBy', 'Diajukan Oleh'), width: '16%' },
+  { key: 'status', label: t('common.status', 'Status'), align: 'center' as const, width: '12%' },
+  { key: 'actions', label: t('common.action', 'Aksi'), align: 'center' as const, width: '10%' },
+])
 
 const activeMenuRefundId = ref<string | null>(null)
 const toggleMenu = (id: string) => {
@@ -186,14 +188,12 @@ const filteredRefunds = computed(() => {
   <div class="space-y-6">
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>
-        <h1 class="text-2xl font-bold text-[#202224] dark:text-white tracking-tight">Persetujuan Refund Pesanan</h1>
+        <h1 class="text-2xl font-bold text-[#202224] dark:text-white tracking-tight">{{ t('refunds.pageTitle', 'Persetujuan Refund') }} Pesanan</h1>
       </div>
     </div>
 
-    <AppTable title="Daftar Permintaan Refund"
-      subtitle="Menampilkan data komplain dan status persetujuan refund dari outlet" :columns="columns"
-      :data="filteredRefunds" :loading="isLoading" showNumbering numberingLabel="No"
-      emptyMessage="Belum ada permintaan refund saat ini.">
+    <AppTable title="Daftar Permintaan Refund" :columns="columns" :data="filteredRefunds" :loading="isLoading"
+      showNumbering numberingLabel="No" emptyMessage="Belum ada permintaan refund saat ini.">
       <template #actions>
         <div class="flex flex-wrap sm:flex-nowrap items-center gap-2.5">
           <!-- Status Filter Dropdown -->
@@ -222,7 +222,7 @@ const filteredRefunds = computed(() => {
 
       <template #cell-reason="{ value }">
         <span class="text-sm max-w-xs block truncate text-[#64748B] dark:text-[#94A3B8]" :title="value">{{ value
-          }}</span>
+        }}</span>
       </template>
 
       <template #cell-requestedBy="{ value }">
@@ -286,7 +286,7 @@ const filteredRefunds = computed(() => {
     <AppModal :show="isRejectModalOpen" title="Tolak Pengajuan Refund" @close="closeRejectModal">
       <div class="space-y-4">
         <div
-          class="p-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-xl flex items-start gap-3 text-amber-700 dark:text-amber-300 text-xs">
+          class="p-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-xl flex items-start gap-3 text-amber-700 dark:text-amber-300 text-sm">
           <AlertCircle class="w-4 h-4 shrink-0 mt-0.5" />
           <span>Pengajuan refund untuk pesanan <strong>{{ selectedRefundToReject?.orderNumber }}</strong> senilai
             <strong>{{

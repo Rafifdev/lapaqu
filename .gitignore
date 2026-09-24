@@ -9,6 +9,10 @@
 ehthumbs.db
 Thumbs.db
 [Dd]esktop.ini
+*.TMP
+*~*.TMP
+*Zone.Identifier*
+*:Zone.Identifier
 
 # Editors & IDEs
 .idea/
@@ -30,6 +34,7 @@ auth.json
 
 # Backend (Laravel) specific ignores
 /pf-backend/vendor/
+node_modules/
 /pf-backend/node_modules/
 /pf-backend/public/storage
 /pf-backend/public/hot
@@ -58,4 +63,6 @@ pnpm-debug.log*
 
 # AI Agent Scratchpads & Temporary Artifacts
 .agents/
+.claude/
+**/.claude/
 scratch/

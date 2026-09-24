@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useNotyf } from '@/composables/useNotyf'
 import { ArrowLeft, CheckCircle2, Printer, DollarSign, QrCode } from 'lucide-vue-next'
 import { useFormat } from '@/composables/useFormat'
 import AppButton from '@/components/ui/AppButton.vue'
@@ -10,9 +11,9 @@ const router = useRouter()
 const route = useRoute()
 const { formatCurrency } = useFormat()
 
-const totalAmount = ref(Number(route.query.amount) || 80000)
+const totalAmount = ref(Number(route.query.amount) || 0)
 const paymentType = ref(route.query.type || 'cash')
-const cashReceived = ref<number>(100000)
+const cashReceived = ref<number>(Number(route.query.amount) || 0)
 const isPaid = ref(false)
 
 const changeAmount = computed(() => Math.max(0, cashReceived.value - totalAmount.value))
@@ -21,8 +22,11 @@ const setQuickCash = (val: number) => {
   cashReceived.value = val
 }
 
+const notyf = useNotyf()
+
 const completePayment = () => {
   isPaid.value = true
+  notyf.success('Pembayaran lunas terkonfirmasi!')
 }
 </script>
 

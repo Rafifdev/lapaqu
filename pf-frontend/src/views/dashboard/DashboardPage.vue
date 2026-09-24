@@ -3,22 +3,30 @@ import { ref, onMounted, computed, watch } from 'vue'
 import apiClient from '@/services/api'
 import type { ChartData, ChartOptions } from 'chart.js'
 import AppIcon from '@/components/ui/AppIcon.vue'
+import AppButton from '@/components/ui/AppButton.vue'
+import { Download } from 'lucide-vue-next'
 import AppStatCard from '@/components/ui/AppStatCard.vue'
 import AppFilterDropdown from '@/components/ui/AppFilterDropdown.vue'
 import AppLineChart from '@/components/ui/AppLineChart.vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
+import AppTable, { type TableColumn } from '@/components/ui/AppTable.vue'
+import AppTableFilterBar, { type FilterBarItem } from '@/components/ui/AppTableFilterBar.vue'
+import AppSearchInput from '@/components/ui/AppSearchInput.vue'
 const DEFAULT_MENU_IMAGE = 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=100&auto=format&fit=crop&q=80'
 import { useFormat } from '@/composables/useFormat'
-import { useAnimatedNumber } from '@/composables/useAnimatedNumber'
 import { usePosStore } from '@/stores/pos'
+import { useDashboardI18n } from '@/i18n'
 import { onBeforeUnmount } from 'vue'
 
 const { formatCurrency } = useFormat()
+const { t, translate, locale } = useDashboardI18n()
 
-// Formatted Date (example: Monday, 24 December 2026)
+// Real server date directly from backend system / database
+const serverDate = ref('')
 const formattedCurrentDate = computed(() => {
+  if (serverDate.value) return serverDate.value
   const now = new Date()
-  return new Intl.DateTimeFormat('id-ID', {
+  return new Intl.DateTimeFormat(locale.value === 'en' ? 'en-US' : 'id-ID', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -28,18 +36,17 @@ const formattedCurrentDate = computed(() => {
 const posStore = usePosStore()
 
 const isLoading = ref(true)
-const selectedPeriod = ref<'today' | 'week' | 'month'>('today')
+const isYearLoading = ref(false)
+const selectedPeriod = ref<'today' | 'week' | 'month' | 'year'>('today')
 
-const periodOptions = [
-  { value: 'today', label: 'Hari Ini' },
-  { value: 'week', label: '7 Hari Terakhir' },
-  { value: 'month', label: 'Bulan Ini' },
-]
+const periodOptions = computed(() => [
+  { value: 'today', label: t('overview.today') },
+  { value: 'week', label: t('overview.thisWeek') },
+  { value: 'month', label: t('overview.thisMonth') },
+  { value: 'year', label: t('overview.thisYear') },
+])
 
-const outletInfo = ref({
-  name: 'Cabang Senopati Utama',
-  tenant: 'Kopi Kenangan Senopati',
-})
+const outletInfo = ref<{ name: string; tenant: string } | null>(null)
 
 // Stats reactive state (Bersih 0 tanpa dummy mockup)
 const statsData = ref({
@@ -51,10 +58,10 @@ const statsData = ref({
 
 // Trend Dinamis (% Naik/Turun vs Periode Sebelumnya)
 const trendsData = ref({
-  customers: { value: '0.0%', isPositive: true, label: 'vs kemarin' },
-  orders: { value: '0.0%', isPositive: true, label: 'vs kemarin' },
-  sales: { value: '0.0%', isPositive: true, label: 'vs kemarin' },
-  pending: { value: '0 pesanan', isPositive: true, label: 'Menunggu dapur' },
+  customers: { value: '0%', isPositive: false, isNeutral: true, label: 'vs kemarin', icon: 'remove' },
+  orders: { value: '0%', isPositive: false, isNeutral: true, label: 'vs kemarin', icon: 'remove' },
+  sales: { value: '0%', isPositive: false, isNeutral: true, label: 'vs kemarin', icon: 'remove' },
+  pending: { value: '0 pesanan', isPositive: true, isNeutral: false, label: 'Dapur lancar', icon: 'check_circle' },
 })
 
 // Deals list from backend
@@ -64,6 +71,7 @@ interface DealItem {
   product_name: string
   location: string
   date_time: string
+  raw_date?: string
   piece: number
   amount: number
   status: 'Delivered' | 'Pending' | 'Rejected'
@@ -72,78 +80,167 @@ interface DealItem {
 
 const dealsList = ref<DealItem[]>([])
 
-// 5 Items Per Page Pagination State
-const currentPage = ref(1)
-const pageSize = 5
+// Kolom untuk AppTable Reusable Component
+const dealsColumns = computed<TableColumn[]>(() => [
+  { key: 'product_name', label: t('overview.table.customer'), width: '32%' },
+  { key: 'location', label: t('overview.table.tableNo'), width: '16%' },
+  { key: 'date_time', label: t('overview.table.time'), width: '18%' },
+  { key: 'piece', label: 'Qty', align: 'center', width: '10%' },
+  { key: 'amount', label: t('overview.table.total'), align: 'right', width: '12%' },
+  { key: 'status', label: t('overview.table.status'), align: 'center', width: '12%' },
+])
 
-const totalPages = computed(() => Math.ceil(dealsList.value.length / pageSize) || 1)
+// Filter & Search State untuk Deals Details
+const dealsStatusFilter = ref('all')
+const dealsStatusOptions = computed(() => [
+  { value: 'all', label: t('overview.table.allStatus') },
+  { value: 'Delivered', label: t('overview.table.paid') },
+  { value: 'Pending', label: t('overview.table.pending') },
+  { value: 'Rejected', label: t('overview.table.cancelled') },
+])
 
-const paginatedDeals = computed(() => {
-  const start = (currentPage.value - 1) * pageSize
-  return dealsList.value.slice(start, start + pageSize)
+const dealsSortFilter = ref('asc')
+const dealsSortOptions = [
+  { value: 'asc', label: 'Sort: Ascending' },
+  { value: 'desc', label: 'Sort: Descending' },
+]
+
+// Reusable Filter Bar Configuration (Bisa dioper langsung ke AppTableFilterBar)
+const dealsFilters = computed<FilterBarItem[]>(() => [
+  {
+    key: 'status',
+    options: dealsStatusOptions.value,
+    width: 'w-44',
+  },
+  {
+    key: 'sort',
+    options: dealsSortOptions,
+    width: 'w-52',
+  },
+])
+const dealsFilterValues = ref<Record<string, string | number>>({
+  status: 'all',
+  sort: 'asc',
 })
 
-const visiblePages = computed(() => {
-  const pages: (number | string)[] = []
-  const total = totalPages.value
-  const cur = currentPage.value
+const dealsStartDate = ref('')
+const dealsEndDate = ref('')
+const dealsSearchQuery = ref('')
 
-  if (total <= 5) {
-    for (let i = 1; i <= total; i++) pages.push(i)
-  } else {
-    pages.push(1)
-    if (cur > 3) pages.push('...')
-    const start = Math.max(2, cur - 1)
-    const end = Math.min(total - 1, cur + 1)
-    for (let i = start; i <= end; i++) pages.push(i)
-    if (cur < total - 2) pages.push('...')
-    pages.push(total)
+const filteredDeals = computed(() => {
+  // Filter Deals berdasarkan dropdown selectedPeriod utama (Hari ini / 7 Hari / Bulan ini)
+  let list = dealsList.value.filter(d => {
+    const raw = d.raw_date || d.date_time
+    if (!raw) return true
+    const dt = new Date(raw)
+    if (isNaN(dt.getTime())) return true
+
+    const now = new Date()
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    const orderDateStr = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+
+    if (selectedPeriod.value === 'today') {
+      return orderDateStr === todayStr
+    } else if (selectedPeriod.value === 'week') {
+      const diffTime = now.getTime() - dt.getTime()
+      return diffTime >= 0 && diffTime <= 7 * 24 * 60 * 60 * 1000
+    } else if (selectedPeriod.value === 'month') {
+      return dt.getFullYear() === now.getFullYear() && dt.getMonth() === now.getMonth()
+    } else if (selectedPeriod.value === 'year') {
+      return dt.getFullYear() === now.getFullYear()
+    }
+    return true
+  })
+
+  // 1. Status Filter (Sinkron baik dari dealsFilterValues.status maupun dealsStatusFilter)
+  const currentStatus = (dealsFilterValues.value.status || dealsStatusFilter.value || 'all') as string
+  if (currentStatus !== 'all') {
+    list = list.filter(d => (d.status || '').toLowerCase() === currentStatus.toLowerCase())
   }
-  return pages
+
+  // 2. Date Range Filter (Identik dengan TransactionHistoryPage)
+  if (dealsStartDate.value || dealsEndDate.value) {
+    list = list.filter(d => {
+      const raw = d.raw_date || d.date_time
+      if (!raw) return false
+      const dt = new Date(raw)
+      if (isNaN(dt.getTime())) return true
+      const year = dt.getFullYear()
+      const month = String(dt.getMonth() + 1).padStart(2, '0')
+      const day = String(dt.getDate()).padStart(2, '0')
+      const orderDate = `${year}-${month}-${day}`
+
+      if (dealsStartDate.value && dealsEndDate.value) {
+        return orderDate >= dealsStartDate.value && orderDate <= dealsEndDate.value
+      } else if (dealsStartDate.value) {
+        return orderDate >= dealsStartDate.value
+      } else if (dealsEndDate.value) {
+        return orderDate <= dealsEndDate.value
+      }
+      return true
+    })
+  }
+
+  // 3. Search Query (Product Name, Order Number, Location, Amount)
+  if (dealsSearchQuery.value.trim()) {
+    const q = dealsSearchQuery.value.trim().toLowerCase()
+    list = list.filter(d =>
+      (d.product_name || '').toLowerCase().includes(q) ||
+      (d.order_number || '').toLowerCase().includes(q) ||
+      (d.location || '').toLowerCase().includes(q) ||
+      String(d.amount || '').includes(q)
+    )
+  }
+
+  // 4. Sort Filter (Identik dengan TransactionHistoryPage)
+  const currentSort = (dealsFilterValues.value.sort || dealsSortFilter.value || 'asc') as string
+  const sorted = [...list]
+  sorted.sort((a, b) => {
+    const timeA = a.raw_date ? new Date(a.raw_date).getTime() : 0
+    const timeB = b.raw_date ? new Date(b.raw_date).getTime() : 0
+
+    if (currentSort === 'asc') {
+      return (a.order_number || '').localeCompare(b.order_number || '') || timeA - timeB
+    }
+    if (currentSort === 'desc') {
+      return (b.order_number || '').localeCompare(a.order_number || '') || timeB - timeA
+    }
+    return 0
+  })
+
+  return sorted
 })
-
-const goToPage = (page: number | string) => {
-  if (typeof page === 'number' && page >= 1 && page <= totalPages.value) {
-    currentPage.value = page
-  }
-}
 
 // Chart raw series
 const rawLabels = ref<string[]>(['08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00'])
 const rawValues = ref<number[]>([0, 0, 0, 0, 0, 0, 0, 0])
 
-// Animasi Count-Up Halus Native untuk Nilai Angka Stat Cards
-const animatedCustomers = useAnimatedNumber(() => statsData.value.total_customers, 800)
-const animatedOrders = useAnimatedNumber(() => statsData.value.total_orders, 800)
-const animatedSales = useAnimatedNumber(() => statsData.value.total_sales, 950)
-const animatedPending = useAnimatedNumber(() => statsData.value.total_pending, 600)
-
-// 4 Stat Cards List dengan Nilai Animasi Counter dan Persentase Tren Realtime
+// 4 Stat Cards List (Nilai angka & tren otomatis dianimasikan secara in-place oleh AppStatCard)
 const statsCards = computed(() => [
   {
-    title: 'Total Pelanggan',
-    value: animatedCustomers.value.toLocaleString('id-ID'),
-    icon: 'group',
+    title: 'Total Penjualan',
+    value: formatCurrency(statsData.value.total_sales),
+    icon: 'payments',
     variant: 'primary' as const,
-    trend: trendsData.value.customers,
+    trend: trendsData.value.sales,
   },
   {
     title: 'Total Pesanan',
-    value: animatedOrders.value.toLocaleString('id-ID'),
+    value: statsData.value.total_orders.toLocaleString('id-ID'),
     icon: 'inventory_2',
     variant: 'secondary' as const,
     trend: trendsData.value.orders,
   },
   {
-    title: 'Total Penjualan',
-    value: formatCurrency(animatedSales.value),
-    icon: 'payments',
+    title: 'Total Pelanggan',
+    value: statsData.value.total_customers.toLocaleString('id-ID'),
+    icon: 'group',
     variant: 'secondary' as const,
-    trend: trendsData.value.sales,
+    trend: trendsData.value.customers,
   },
   {
     title: 'Antrean Pending',
-    value: animatedPending.value.toLocaleString('id-ID'),
+    value: statsData.value.total_pending.toLocaleString('id-ID'),
     icon: 'history',
     variant: 'secondary' as const,
     trend: trendsData.value.pending,
@@ -183,6 +280,18 @@ const chartData = computed<ChartData<'line'>>(() => ({
 const chartOptions = computed<ChartOptions<'line'>>(() => ({
   responsive: true,
   maintainAspectRatio: false,
+  animation: {
+    duration: 260,
+    easing: 'easeOutQuart',
+  },
+  transitions: {
+    active: {
+      animation: {
+        duration: 300,
+        easing: 'easeOutQuart',
+      },
+    },
+  },
   interaction: {
     intersect: false,
     mode: 'index',
@@ -260,6 +369,8 @@ const getPeriodFilteredOrders = (orders: any[]) => {
       return diffTime >= 0 && diffTime <= 7 * 24 * 60 * 60 * 1000
     } else if (selectedPeriod.value === 'month') {
       return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
+    } else if (selectedPeriod.value === 'year') {
+      return d.getFullYear() === now.getFullYear()
     }
     return true
   })
@@ -267,8 +378,7 @@ const getPeriodFilteredOrders = (orders: any[]) => {
 
 // Hitung Tren & Statistik Realtime dari posStore (Reaktif Instan)
 const calculateLocalStats = () => {
-  if (!posStore.orders || posStore.orders.length === 0) return
-
+  const orders = posStore.orders || []
   const now = new Date()
   let labelPeriod = 'kemarin'
 
@@ -300,6 +410,14 @@ const calculateLocalStats = () => {
       const t = new Date(o.createdAt).getTime()
       return t >= startPrev && t < endPrev
     })
+  } else if (selectedPeriod.value === 'year') {
+    labelPeriod = 'tahun lalu'
+    const prevYear = now.getFullYear() - 1
+    prevOrders = posStore.orders.filter(o => {
+      if (!o.createdAt) return false
+      const d = new Date(o.createdAt)
+      return d.getFullYear() === prevYear
+    })
   } else {
     labelPeriod = 'bulan lalu'
     const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
@@ -330,16 +448,50 @@ const calculateLocalStats = () => {
   const prevCust = new Set(prevPaid.map(o => o.customerName || 'Order Manual')).size
 
   const formatTrend = (curr: number, prev: number, label: string) => {
-    if (prev === 0) {
-      if (curr === 0) return { value: '0.0%', isPositive: true, label: `Stabil vs ${label}` }
-      return { value: '+100%', isPositive: true, label: `Naik dari ${label}` }
+    // Jika data saat ini masih 0, tampilkan 0% warna abu-abu (jangan -100%)
+    if (curr <= 0) {
+      return {
+        value: '0%',
+        isPositive: false,
+        isNeutral: true,
+        label: `vs ${label}`,
+        icon: 'remove',
+      }
     }
-    const pct = Math.round(((curr - prev) / prev) * 1000) / 10
-    const isPos = pct >= 0
+
+    // Jika periode sebelumnya 0 dan saat ini ada data transaksi
+    if (prev <= 0) {
+      return {
+        value: '+100%',
+        isPositive: true,
+        isNeutral: false,
+        label: `Naik dari ${label}`,
+        icon: 'arrow_upward',
+      }
+    }
+
+    const diff = curr - prev
+    const pct = Math.round((diff / prev) * 1000) / 10
+    const isZero = pct === 0
+    const isPos = pct > 0
+    const formattedVal = Number.isInteger(pct) ? `${pct}%` : `${pct.toFixed(1)}%`
+
+    if (isZero) {
+      return {
+        value: '0%',
+        isPositive: false,
+        isNeutral: true,
+        label: `Stabil vs ${label}`,
+        icon: 'remove',
+      }
+    }
+
     return {
-      value: `${isPos ? '+' : ''}${pct.toFixed(1)}%`,
+      value: `${isPos ? '+' : ''}${formattedVal}`,
       isPositive: isPos,
+      isNeutral: false,
       label: `${isPos ? 'Naik dari' : 'Turun dari'} ${label}`,
+      icon: isPos ? 'arrow_upward' : 'arrow_downward',
     }
   }
 
@@ -357,7 +509,9 @@ const calculateLocalStats = () => {
     pending: {
       value: `${pendingOrders.length} pesanan`,
       isPositive: pendingOrders.length <= 5,
-      label: 'Menunggu dapur',
+      isNeutral: false,
+      label: pendingOrders.length === 0 ? 'Dapur lancar' : 'Menunggu dapur',
+      icon: pendingOrders.length === 0 ? 'check_circle' : 'schedule',
     },
   }
 
@@ -366,6 +520,7 @@ const calculateLocalStats = () => {
 
 // Hitung Grafik Live Realtime dari Data Pesanan Kasir & Online Sesuai Periode
 const updateChartFromOrders = () => {
+  const now = new Date()
   const periodOrders = getPeriodFilteredOrders(posStore.orders)
   const paid = periodOrders.filter(o =>
     (o.paymentStatus === 'paid' || o.status === 'completed') &&
@@ -392,7 +547,6 @@ const updateChartFromOrders = () => {
     const dayNames = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
     const labels: string[] = []
     const values: number[] = []
-    const now = new Date()
     for (let i = 6; i >= 0; i--) {
       const targetDate = new Date()
       targetDate.setDate(now.getDate() - i)
@@ -408,6 +562,18 @@ const updateChartFromOrders = () => {
       values.push(daySum)
     }
     rawLabels.value = labels
+    rawValues.value = values
+  } else if (selectedPeriod.value === 'year') {
+    // Tahun Ini (12 Bulan)
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+    const values = new Array(12).fill(0)
+    paid.forEach(o => {
+      const d = o.createdAt ? new Date(o.createdAt) : new Date()
+      if (d.getFullYear() === now.getFullYear()) {
+        values[d.getMonth()] += (o.totalAmount || 0)
+      }
+    })
+    rawLabels.value = months
     rawValues.value = values
   } else {
     // Bulan Ini (Interval 5 harian)
@@ -426,8 +592,6 @@ const updateChartFromOrders = () => {
 
 // Fetch Dynamic Realtime Data from pf-backend API
 const fetchDashboardData = async () => {
-  // Hitung instan secara lokal terlebih dahulu
-  calculateLocalStats()
 
   try {
     const res = await apiClient.get(`/dashboard/overview?period=${selectedPeriod.value}`, {
@@ -435,6 +599,9 @@ const fetchDashboardData = async () => {
     })
 
     if (res.data) {
+      if (res.data.date && res.data.date.formatted) {
+        serverDate.value = res.data.date.formatted
+      }
       if (res.data.outlet) {
         outletInfo.value = res.data.outlet
         if (res.data.outlet.id) {
@@ -442,11 +609,19 @@ const fetchDashboardData = async () => {
         }
       }
       if (res.data.stats) {
-        statsData.value = {
-          total_customers: res.data.stats.total_customers,
-          total_orders: res.data.stats.total_orders,
-          total_sales: res.data.stats.total_sales,
-          total_pending: res.data.stats.total_pending,
+        const s = res.data.stats
+        if (
+          statsData.value.total_customers !== s.total_customers ||
+          statsData.value.total_orders !== s.total_orders ||
+          statsData.value.total_sales !== s.total_sales ||
+          statsData.value.total_pending !== s.total_pending
+        ) {
+          statsData.value = {
+            total_customers: s.total_customers,
+            total_orders: s.total_orders,
+            total_sales: s.total_sales,
+            total_pending: s.total_pending,
+          }
         }
         if (res.data.stats.trends) {
           trendsData.value = res.data.stats.trends
@@ -459,14 +634,16 @@ const fetchDashboardData = async () => {
         updateChartFromOrders()
       }
       if (res.data.deals && Array.isArray(res.data.deals) && res.data.deals.length > 0) {
-        dealsList.value = res.data.deals.map((item: any, i: number) => ({
+        dealsList.value = res.data.deals.map((item: any) => ({
           ...item,
-          avatar: DEFAULT_MENU_IMAGE,
+          raw_date: item.raw_date || item.created_at || '',
+          avatar: item.avatar || DEFAULT_MENU_IMAGE,
         }))
       }
     }
   } catch (err) {
     console.warn('Backend overview endpoint fallback to posStore:', err)
+    calculateLocalStats()
   } finally {
     // If dealsList is still empty, populate from posStore.orders
     if (dealsList.value.length === 0 && posStore.orders.length > 0) {
@@ -486,6 +663,11 @@ const fetchDashboardData = async () => {
         const pieceCount = o.items ? o.items.reduce((sum: number, it: any) => sum + (it.quantity || 1), 0) : 1
         const d = o.createdAt ? new Date(o.createdAt) : new Date()
         const dateFormatted = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()} - ${d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}`
+        const matchedMenuItem = posStore.menuItems.find(
+          m => m.id === (firstItem as any)?.menuItemId || m.name === (firstItem as any)?.menuItemName || m.name === (firstItem as any)?.name
+        )
+        const itemAvatar = (firstItem as any)?.imageUrl || matchedMenuItem?.imageUrl || DEFAULT_MENU_IMAGE
+
         return {
           id: o.id || idx,
           order_number: o.orderNumber || `ORD-${idx}`,
@@ -495,7 +677,7 @@ const fetchDashboardData = async () => {
           piece: pieceCount,
           amount: o.totalAmount || 0,
           status: dealStatus,
-          avatar: DEFAULT_MENU_IMAGE
+          avatar: itemAvatar
         }
       })
     }
@@ -504,28 +686,30 @@ const fetchDashboardData = async () => {
 }
 
 const handleRealtimeSync = async () => {
-  await posStore.fetchOrders()
-  calculateLocalStats()
+  await posStore.fetchOrders(true)
   await fetchDashboardData()
 }
 
 // Reaktivitas Instan saat pesanan berubah di posStore
 watch(() => posStore.orders, () => {
-  calculateLocalStats()
+  if (statsData.value.total_orders === 0 && posStore.orders.length > 0) {
+    calculateLocalStats()
+  }
 }, { deep: true })
 
 let pollInterval: any = null
 
 onMounted(async () => {
   posStore.initRealtime()
-  await posStore.fetchOrders()
-  calculateLocalStats()
-  await fetchDashboardData()
+  await Promise.allSettled([
+    posStore.fetchOrders(false),
+    fetchDashboardData(),
+  ])
   window.addEventListener('kds:refresh', handleRealtimeSync)
 
-  // Interval polling backup setiap 10 detik agar tetap terupdate jika koneksi WS idle
+  // Interval polling backup setiap 10 detik di background secara mulus
   pollInterval = setInterval(async () => {
-    await posStore.fetchOrders()
+    await posStore.fetchOrders(true)
     await fetchDashboardData()
   }, 10000)
 })
@@ -538,10 +722,20 @@ onBeforeUnmount(() => {
   }
 })
 
-watch(selectedPeriod, () => {
+watch(selectedPeriod, async (newVal) => {
+  if (newVal === 'year') {
+    isYearLoading.value = true
+  }
+  // 1. Eksekusi kalkulasi lokal langsung seketika (Instant 0ms Feedback)
   calculateLocalStats()
-  fetchDashboardData()
-  currentPage.value = 1
+  updateChartFromOrders()
+
+  // 2. Sinkronkan ke server secara background
+  try {
+    await fetchDashboardData()
+  } finally {
+    isYearLoading.value = false
+  }
 })
 
 
@@ -587,36 +781,53 @@ const getStatusBadgeClass = (status: string) => {
   }
 }
 
+
+// {{ t('overview.exportCsv') }} Handler (Samakan dengan Laporan Penjualan & Omset)
+const exportCsv = () => {
+  const list = filteredDeals.value.length > 0 ? filteredDeals.value : dealsList.value
+  if (list.length === 0) {
+    alert('Belum ada data transaksi untuk diexport pada periode ini.')
+    return
+  }
+  const headers = ['No', 'Order Number', 'Product / Item', 'Location', 'Date Time', 'Piece', 'Amount (IDR)', 'Status']
+  const rows = list.map((d, idx) => [
+    idx + 1,
+    `"${d.order_number || '-'}"`,
+    `"${(d.product_name || 'Pesanan Resto').replace(/"/g, '""')}"`,
+    `"${d.location || '-'}"`,
+    `"${d.date_time || '-'}"`,
+    d.piece || 1,
+    d.amount || 0,
+    `"${d.status || 'Delivered'}"`
+  ])
+  const csvRows = [headers.join(','), ...rows.map(e => e.join(','))]
+  const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + csvRows.join('\n')
+  const encodedUri = encodeURI(csvContent)
+  const link = document.createElement('a')
+  link.setAttribute('href', encodedUri)
+  link.setAttribute('download', `dashboard-deals-${selectedPeriod.value}-${new Date().toISOString().slice(0, 10)}.csv`)
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
 </script>
 
 <template>
   <div class="space-y-7 pb-10">
-    <!-- Page Title & Formatted Date -->
-    <div class="flex items-center justify-between">
+    <!-- Page Title, Formatted Date & Action Filters (Samakan dengan Laporan Penjualan & Omset) -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>
-        <h1 class="text-2xl font-bold text-[#202224] dark:text-white tracking-tight">Dashboard</h1>
-        <p class="text-xs sm:text-sm text-[#606060] dark:text-[#A6A6A6] font-medium mt-0.5">
+        <div>
+          <h1 class="text-2xl font-bold text-[#202224] dark:text-white tracking-tight">Dashboard</h1>
+        </div>
+        <p class="text-xs sm:text-sm text-[#64748B] dark:text-[#94A3B8] font-semibold mt-0.5">
           {{ formattedCurrentDate }}
         </p>
       </div>
-    </div>
 
-    <!-- 4 Stat Cards Row (Figma DashStack 100% Dynamic) -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-      <AppStatCard v-for="stat in statsCards" :key="stat.title" :title="stat.title" :value="stat.value"
-        :icon="stat.icon" :variant="stat.variant" :trend="stat.trend" :loading="isLoading" />
-    </div>
-
-    <!-- Sales Details Chart Card (Clean & Modern vue-chartjs) -->
-    <div
-      class="bg-white dark:bg-[#273142] rounded-[14px] p-6 md:p-8 shadow-[6px_6px_54px_0_rgba(0,0,0,0.05)] dark:shadow-none border border-transparent dark:border-[#313D4F] space-y-6">
-      <!-- Card Header: Title on Left, Synchronized Dropdown Filter on Right -->
-      <div class="flex items-center justify-between">
-        <h2 class="text-2xl font-bold text-[#202224] dark:text-white leading-tight">
-          Sales Details
-        </h2>
-
-        <!-- Dropdown Filter (Style Riwayat Order dengan background putih seperti awal) -->
+      <div class="flex items-center gap-3">
+        <!-- Period Filter Dropdown (White Card Style matching TopItems & Laporan Penjualan) -->
         <AppFilterDropdown
           v-model="selectedPeriod"
           :options="periodOptions"
@@ -624,6 +835,54 @@ const getStatusBadgeClass = (status: string) => {
           width="w-44"
           align="right"
         />
+
+        <!-- {{ t('overview.exportCsv') }} Button -->
+        <AppButton @click="exportCsv" variant="primary" size="md" class="!rounded-lg !font-bold shadow-sm">
+          <template #prefix>
+            <Download class="w-4 h-4" />
+          </template>
+          {{ t('overview.exportCsv') }}
+        </AppButton>
+      </div>
+    </div>
+
+    <!-- 4 Stat Cards Row (Komponen card statis tidak re-render, animasi halus pada angka & stats bawah saja) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div
+        v-for="stat in statsCards"
+        :key="stat.title"
+        class="h-full"
+      >
+        <AppStatCard
+          :title="stat.title"
+          :value="stat.value"
+          :icon="stat.icon"
+          :variant="stat.variant"
+          :trend="stat.trend"
+          :loading="isLoading"
+          :syncing="isYearLoading"
+        />
+      </div>
+    </div>
+
+    <!-- Sales Details Chart Card (Clean & Modern vue-chartjs) -->
+    <div
+      class="bg-white dark:bg-[#273142] rounded-[14px] p-6 md:p-8 shadow-[6px_6px_54px_0_rgba(0,0,0,0.05)] dark:shadow-none border border-transparent dark:border-[#313D4F] space-y-6">
+      <!-- Card Header -->
+      <div class="flex items-center justify-between">
+        <h2 class="text-2xl font-bold text-[#202224] dark:text-white leading-tight">
+          Sales Details
+        </h2>
+        <svg
+          v-if="isYearLoading"
+          class="animate-spin w-5 h-5 text-[#4880FF] shrink-0"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
       </div>
 
       <!-- vue-chartjs Canvas Container -->
@@ -632,137 +891,97 @@ const getStatusBadgeClass = (status: string) => {
       </div>
     </div>
 
-    <!-- Deals Details Table Card (5 Items Per Page with Pagination) -->
-    <div
-      class="bg-white dark:bg-[#273142] rounded-[14px] p-6 md:p-8 shadow-[6px_6px_54px_0_rgba(0,0,0,0.05)] dark:shadow-none border border-transparent dark:border-[#313D4F] space-y-6">
-      <!-- Card Header -->
-      <div class="flex items-center justify-between">
-        <h2 class="text-2xl font-bold text-[#202224] dark:text-white leading-tight">
-          Deals Details
-        </h2>
-      </div>
+    <!-- Deals Details Table Card (Menggunakan Reusable Component AppTable) -->
+    <AppTable
+      :title="t('overview.charts.dealsDetails')"
+      :columns="dealsColumns"
+      :data="filteredDeals"
+      :loading="isLoading"
+      :pageSize="20"
+      showNumbering
+      numberingLabel="No"
+      :scrollable="true"
+      maxHeight="max-h-[440px]"
+      minHeight="min-h-[360px]"
+      :emptyTitle="t('overview.table.emptyTitle')"
+      :emptyMessage="t('overview.table.emptyDesc')"
+    >
+      <!-- Sub-header: Filters (Status) di kiri, Search dan Range Date di kanan sejajar -->
+      <template #header>
+        <div class="space-y-4 w-full">
+          <div class="flex items-center justify-between">
+            <h2 class="text-2xl font-bold text-[#202224] dark:text-white leading-tight">
+              Deals Details
+            </h2>
+            <svg
+              v-if="isYearLoading"
+              class="animate-spin w-5 h-5 text-[#4880FF] shrink-0"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          </div>
 
-      <!-- Table (Exactly 5 Items Per Page) -->
-      <div class="overflow-x-auto">
-        <table class="w-full text-left">
-          <!-- Table Header with DashStack #F1F4F9 Background (Text Normal Base) -->
-          <thead>
-            <tr class="bg-[#F1F4F9] dark:bg-[#323D4E] rounded-xl text-sm font-bold text-[#202224] dark:text-white">
-              <th class="py-3.5 px-4 rounded-l-xl text-center w-14">No</th>
-              <th class="py-3.5 px-4">Product Name</th>
-              <th class="py-3.5 px-4">Location</th>
-              <th class="py-3.5 px-4">Date - Time</th>
-              <th class="py-3.5 px-4 text-center">Piece</th>
-              <th class="py-3.5 px-4 text-right">Amount</th>
-              <th class="py-3.5 px-5 text-center rounded-r-xl">Status</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-[#E8E8E8] dark:divide-[#313D4F] text-sm">
-            <tr v-for="(item, idx) in paginatedDeals" :key="item.id"
-              class="hover:bg-[#F8FAFC] dark:hover:bg-[#334155]/30 transition-colors">
-              <!-- Nomor Urut (Sub text sm) -->
-              <td class="py-4 px-4 text-center text-sm font-bold text-[#64748B] dark:text-[#94A3B8] tabular-nums">
-                {{ (currentPage - 1) * pageSize + idx + 1 }}
-              </td>
-
-              <!-- Product Name (Text Normal Base) with Order Number (Sub text sm) -->
-              <td class="py-4 px-4 font-semibold text-[#202224] dark:text-white">
-                <div class="flex items-center gap-3.5">
-                  <img :src="item.avatar || DEFAULT_MENU_IMAGE" :alt="item.product_name"
-                    @error="handleImageError" class="w-11 h-11 rounded-xl object-cover bg-[#D8D8D8] shrink-0" />
-                  <div class="flex flex-col">
-                    <span class="font-bold text-sm text-[#202224] dark:text-white leading-snug">{{ item.product_name }}</span>
-                    <span class="text-sm font-mono text-[#64748B] dark:text-[#94A3B8] mt-0.5">{{ item.order_number }}</span>
-                  </div>
-                </div>
-              </td>
-
-              <!-- Location (Text Normal Base) -->
-              <td class="py-4 px-4 font-medium text-sm text-[#475569] dark:text-[#E2E8F0]">
-                {{ item.location }}
-              </td>
-
-              <!-- Date - Time (Text Normal Base) -->
-              <td class="py-4 px-4 font-medium text-sm text-[#475569] dark:text-[#E2E8F0] tabular-nums">
-                {{ item.date_time }}
-              </td>
-
-              <!-- Piece (Text Normal Base) -->
-              <td class="py-4 px-4 font-semibold text-sm text-[#202224] dark:text-white text-center tabular-nums">
-                {{ item.piece }}
-              </td>
-
-              <!-- Amount (Text Normal Base) -->
-              <td class="py-4 px-4 font-bold text-sm text-[#202224] dark:text-white tabular-nums text-right">
-                {{ formatCurrency(item.amount) }}
-              </td>
-
-              <!-- Status Pill (Vibrant solid green/yellow/red) -->
-              <td class="py-4 px-5 text-center">
-                <AppBadge :variant="getBadgeVariant(item.status)" rounded="full" size="md">
-                  {{ item.status }}
-                </AppBadge>
-              </td>
-            </tr>
-
-            <!-- Empty State -->
-            <tr v-if="paginatedDeals.length === 0">
-              <td colspan="7" class="py-8 text-center text-sm font-semibold text-[#64748B] dark:text-[#94A3B8]">
-                Belum ada transaksi pada periode ini
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Pagination Footer matching DashStack -->
-      <div v-if="dealsList.length > 0"
-        class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2 border-t border-[#F1F4F9] dark:border-[#313D4F]/50">
-        <!-- Result count (Sub text sm) -->
-        <p class="text-sm font-medium text-[#64748B] dark:text-[#94A3B8]">
-          Menampilkan <span class="font-bold text-[#202224] dark:text-white">{{ (currentPage - 1) * pageSize + 1 }}-{{
-            Math.min(currentPage * pageSize, dealsList.length) }}</span> dari <span
-            class="font-bold text-[#202224] dark:text-white">{{ dealsList.length }}</span> data
-        </p>
-
-        <!-- Pagination Page Buttons (Sub text sm) -->
-        <div class="flex items-center gap-2">
-          <!-- Previous Button -->
-          <button type="button" @click="goToPage(currentPage - 1)" :disabled="currentPage === 1" :class="[
-            'h-9 w-9 rounded-lg flex items-center justify-center border text-sm font-bold transition-colors cursor-pointer',
-            currentPage === 1
-              ? 'border-[#E2E8F0] dark:border-[#313D4F] text-[#CBD5E1] dark:text-[#475569] cursor-not-allowed opacity-50'
-              : 'border-[#E2E8F0] dark:border-[#313D4F] text-[#475569] dark:text-[#CBD5E1] hover:bg-[#F8FAFC] dark:hover:bg-[#334155] hover:text-[#4880FF]'
-          ]" title="Halaman Sebelumnya">
-            <AppIcon name="chevron_left" :size="18" />
-          </button>
-
-          <!-- Numbered Page Buttons -->
-          <template v-for="(p, idx) in visiblePages" :key="idx">
-            <span v-if="p === '...'" class="h-9 px-2 flex items-center justify-center text-sm font-bold text-[#94A3B8]">
-              ...
-            </span>
-            <button v-else type="button" @click="goToPage(p)" :class="[
-              'h-9 min-w-[36px] px-3 rounded-lg text-sm font-bold transition-all cursor-pointer flex items-center justify-center',
-              currentPage === p
-                ? 'bg-[#4880FF] text-white shadow-sm font-black'
-                : 'border border-[#E2E8F0] dark:border-[#313D4F] text-[#475569] dark:text-[#CBD5E1] hover:bg-[#F8FAFC] dark:hover:bg-[#334155] hover:text-[#4880FF]'
-            ]">
-              {{ p }}
-            </button>
-          </template>
-
-          <!-- Next Button -->
-          <button type="button" @click="goToPage(currentPage + 1)" :disabled="currentPage === totalPages" :class="[
-            'h-9 w-9 rounded-lg flex items-center justify-center border text-sm font-bold transition-colors cursor-pointer',
-            currentPage === totalPages
-              ? 'border-[#E2E8F0] dark:border-[#313D4F] text-[#CBD5E1] dark:text-[#475569] cursor-not-allowed opacity-50'
-              : 'border-[#E2E8F0] dark:border-[#313D4F] text-[#475569] dark:text-[#CBD5E1] hover:bg-[#F8FAFC] dark:hover:bg-[#334155] hover:text-[#4880FF]'
-          ]" title="Halaman Berikutnya">
-            <AppIcon name="chevron_right" :size="18" />
-          </button>
+          <!-- Reusable Component Filter Bar (Varian identik dengan Riwayat Order) -->
+          <AppTableFilterBar
+            v-model:search="dealsSearchQuery"
+            searchPlaceholder="Cari produk, order, meja..."
+            showDateRange
+            v-model:startDate="dealsStartDate"
+            v-model:endDate="dealsEndDate"
+            :filters="dealsFilters"
+            v-model:filterValues="dealsFilterValues"
+          />
         </div>
-      </div>
-    </div>
+      </template>
+
+      <!-- Cell: Product Name with Real Database Avatar & Order Number -->
+      <template #cell-product_name="{ row }">
+        <div class="flex items-center gap-3.5">
+          <img
+            :src="row.avatar || DEFAULT_MENU_IMAGE"
+            :alt="row.product_name"
+            @error="handleImageError"
+            class="w-11 h-11 rounded-xl object-cover bg-[#D8D8D8] shrink-0"
+          />
+          <div class="flex flex-col">
+            <span class="font-bold text-sm text-[#202224] dark:text-white leading-snug">{{ row.product_name }}</span>
+            <span class="text-sm font-mono text-[#64748B] dark:text-[#94A3B8] mt-0.5">{{ row.order_number }}</span>
+          </div>
+        </div>
+      </template>
+
+      <!-- Cell: Location -->
+      <template #cell-location="{ value }">
+        <span class="text-sm font-medium text-[#475569] dark:text-[#E2E8F0]">{{ value }}</span>
+      </template>
+
+      <!-- Cell: Date - Time -->
+      <template #cell-date_time="{ value }">
+        <span class="text-sm font-medium text-[#475569] dark:text-[#E2E8F0] tabular-nums">{{ value }}</span>
+      </template>
+
+      <!-- Cell: Piece -->
+      <template #cell-piece="{ value }">
+        <span class="text-sm font-semibold text-[#202224] dark:text-white tabular-nums">{{ value }}</span>
+      </template>
+
+      <!-- Cell: Amount -->
+      <template #cell-amount="{ value }">
+        <span class="text-sm font-bold text-[#202224] dark:text-white tabular-nums">{{ formatCurrency(value) }}</span>
+      </template>
+
+      <!-- Cell: Status Pill -->
+      <template #cell-status="{ value }">
+        <AppBadge :variant="getBadgeVariant(value)" rounded="full" size="md">
+          {{ value }}
+        </AppBadge>
+      </template>
+    </AppTable>
   </div>
 </template>
+
+

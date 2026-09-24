@@ -10,6 +10,7 @@ use App\Models\Subscription;
 use App\Models\Table;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\RegistrationOtpService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,7 +20,33 @@ use Illuminate\Validation\Rules\Password;
 
 class OnboardingController extends Controller
 {
-    public function register(Request $request): JsonResponse
+    public function sendOtp(Request $request, RegistrationOtpService $otpService): JsonResponse
+    {
+        $request->validate([
+            'email' => ['required', 'email', 'max:150', 'unique:users,email'],
+            'name' => ['required', 'string', 'max:150'],
+        ], [
+            'email.required' => 'Alamat email wajib diisi.',
+            'email.email' => 'Format alamat email tidak valid.',
+            'email.unique' => 'Alamat email ini sudah terdaftar. Silakan masuk atau gunakan email lain.',
+            'name.required' => 'Nama lengkap wajib diisi.',
+        ]);
+
+        $result = $otpService->sendOtp($request->email, $request->name);
+
+        if (! $result['success'] && ! empty($result['is_cooldown'])) {
+            return response()->json([
+                'message' => $result['message'],
+                'remaining_seconds' => $result['remaining_seconds'],
+            ], 429);
+        }
+
+        return response()->json([
+            'message' => $result['message'],
+        ]);
+    }
+
+    public function register(Request $request, RegistrationOtpService $otpService): JsonResponse
     {
         $request->validate([
             'restaurant_name' => ['required', 'string', 'max:150'],
@@ -35,9 +62,25 @@ class OnboardingController extends Controller
             'owner_name' => ['required', 'string', 'max:150'],
             'owner_email' => ['required', 'email', 'max:150', 'unique:users,email'],
             'owner_password' => ['required', 'string', Password::min(8)->letters()->numbers()],
+            'otp' => ['required', 'string', 'size:6'],
             'phone' => ['nullable', 'string', 'max:30'],
             'plan_code' => ['nullable', 'string', 'exists:plans,code'],
+        ], [
+            'owner_email.unique' => 'Alamat email ini sudah terdaftar.',
+            'otp.required' => 'Kode OTP wajib diisi.',
+            'otp.size' => 'Kode OTP harus 6 digit angka.',
         ]);
+
+        // Verifikasi OTP
+        $otpVerification = $otpService->verifyOtp($request->owner_email, $request->otp);
+        if (! $otpVerification['success']) {
+            return response()->json([
+                'message' => $otpVerification['message'],
+                'errors' => [
+                    'otp' => [$otpVerification['message']],
+                ],
+            ], 422);
+        }
 
         $subdomain = strtolower($request->subdomain);
         $planCode = $request->input('plan_code', 'basic');
@@ -61,6 +104,8 @@ class OnboardingController extends Controller
                 'phone' => $request->phone,
                 'is_active' => true,
             ]);
+            $owner->email_verified_at = now();
+            $owner->save();
             $owner->assignRole('owner');
 
             // 3. Create Subscription
@@ -84,6 +129,8 @@ class OnboardingController extends Controller
 
             $owner->outlet_id = $outlet->id;
             $owner->save();
+
+            // Starter staff tidak dibuat otomatis saat onboarding (staff ditambahkan mandiri oleh owner)
 
             // 5. Create 5 Default Tables (T1 - T5)
             for ($i = 1; $i <= 5; $i++) {

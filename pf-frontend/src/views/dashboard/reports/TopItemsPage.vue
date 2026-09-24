@@ -3,6 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { Download } from 'lucide-vue-next'
 import { useFormat } from '@/composables/useFormat'
 import { useTheme } from '@/composables/useTheme'
+import { useDashboardI18n } from '@/i18n'
 import { usePosStore } from '@/stores/pos'
 import { useAuthStore } from '@/stores/auth'
 import apiClient from '@/services/api'
@@ -22,7 +23,9 @@ const posStore = usePosStore()
 const authStore = useAuthStore()
 const { formatCurrency, formatNumber } = useFormat()
 const { isDark } = useTheme()
+const { t, translate, locale } = useDashboardI18n()
 const isLoading = ref(true)
+const isYearLoading = ref(false)
 
 interface TopReportItem {
   id: string
@@ -48,17 +51,17 @@ interface CategoryBreakdownItem {
 // Period Filter: Hari ini, Minggu ini, Bulan ini (default), Tahun ini
 const selectedPeriod = ref<'today' | 'week' | 'month' | 'year'>('month')
 
-const periodOptions = [
-  { value: 'today', label: 'Hari ini' },
-  { value: 'week', label: 'Minggu ini' },
-  { value: 'month', label: 'Bulan ini' },
-  { value: 'year', label: 'Tahun ini' },
-]
+const periodOptions = computed(() => [
+  { value: 'today', label: locale.value === 'en' ? 'Today' : 'Hari ini' },
+  { value: 'week', label: locale.value === 'en' ? 'This Week' : 'Minggu ini' },
+  { value: 'month', label: locale.value === 'en' ? 'This Month' : 'Bulan ini' },
+  { value: 'year', label: locale.value === 'en' ? 'This Year' : 'Tahun ini' },
+])
 
 // Formatted Date (example: Monday, 24 December 2026)
 const formattedCurrentDate = computed(() => {
   const now = new Date()
-  return new Intl.DateTimeFormat('id-ID', {
+  return new Intl.DateTimeFormat(locale.value === 'en' ? 'en-US' : 'id-ID', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -81,38 +84,34 @@ const periodTrendLabel = computed(() => {
   }
 })
 
-// Dynamic trend percentages per period
+// Dynamic stats indicators computed from real database data
 const trendStats = computed(() => {
-  switch (selectedPeriod.value) {
-    case 'today':
-      return {
-        qty: { value: '3.2%', isPositive: true, label: periodTrendLabel.value },
-        turnover: { value: '4.1%', isPositive: true, label: periodTrendLabel.value },
-        topItem: { value: '6.5%', isPositive: true, label: periodTrendLabel.value },
-        topCategory: { value: '2.8%', isPositive: true, label: periodTrendLabel.value },
-      }
-    case 'week':
-      return {
-        qty: { value: '5.4%', isPositive: true, label: periodTrendLabel.value },
-        turnover: { value: '3.8%', isPositive: true, label: periodTrendLabel.value },
-        topItem: { value: '7.1%', isPositive: true, label: periodTrendLabel.value },
-        topCategory: { value: '4.2%', isPositive: true, label: periodTrendLabel.value },
-      }
-    case 'year':
-      return {
-        qty: { value: '18.6%', isPositive: true, label: periodTrendLabel.value },
-        turnover: { value: '22.4%', isPositive: true, label: periodTrendLabel.value },
-        topItem: { value: '15.2%', isPositive: true, label: periodTrendLabel.value },
-        topCategory: { value: '19.0%', isPositive: true, label: periodTrendLabel.value },
-      }
-    case 'month':
-    default:
-      return {
-        qty: { value: '4.9%', isPositive: true, label: periodTrendLabel.value },
-        turnover: { value: '2.7%', isPositive: true, label: periodTrendLabel.value },
-        topItem: { value: '8.4%', isPositive: true, label: periodTrendLabel.value },
-        topCategory: { value: '3.4%', isPositive: true, label: periodTrendLabel.value },
-      }
+  const qty = totalSoldQty.value
+  const turnover = totalTurnover.value
+  const topItemName = topItemByQty.value?.name
+  const topCatName = topCategory.value?.name
+
+  return {
+    qty: {
+      value: `${formatNumber(qty)} Porsi`,
+      isPositive: qty > 0,
+      label: periodTrendLabel.value,
+    },
+    turnover: {
+      value: formatCurrency(turnover),
+      isPositive: turnover > 0,
+      label: periodTrendLabel.value,
+    },
+    topItem: {
+      value: topItemName || 'Belum ada',
+      isPositive: Boolean(topItemName),
+      label: 'Favorit #1',
+    },
+    topCategory: {
+      value: topCatName || 'Belum ada',
+      isPositive: Boolean(topCatName),
+      label: 'Kategori utama',
+    },
   }
 })
 
@@ -142,8 +141,10 @@ const summaryData = ref<{
   top_category: CategoryBreakdownItem | null
 } | null>(null)
 
-const fetchReportData = async () => {
-  isLoading.value = true
+const fetchReportData = async (isInitial = false) => {
+  if (isInitial || reportItems.value.length === 0) {
+    isLoading.value = true
+  }
   try {
     await authStore.ensureToken()
     await posStore.fetchCategories()
@@ -161,12 +162,19 @@ const fetchReportData = async () => {
   }
 }
 
-watch(selectedPeriod, () => {
-  fetchReportData()
+watch(selectedPeriod, async (newVal) => {
+  if (newVal === 'year') {
+    isYearLoading.value = true
+  }
+  try {
+    await fetchReportData(false)
+  } finally {
+    isYearLoading.value = false
+  }
 })
 
 onMounted(() => {
-  fetchReportData()
+  fetchReportData(true)
 })
 
 // Badge Variant helper
@@ -260,6 +268,10 @@ const topItemsChartData = computed<ChartData<'bar'>>(() => {
 const topItemsChartOptions = computed<ChartOptions<'bar'>>(() => ({
   responsive: true,
   maintainAspectRatio: false,
+  animation: {
+    duration: 260,
+    easing: 'easeOutQuart',
+  },
   plugins: {
     legend: { display: false },
     tooltip: {
@@ -348,6 +360,10 @@ const getCategoryPercent = (cat: CategoryBreakdownItem) => {
 const categoryChartOptions = computed<ChartOptions<'doughnut'>>(() => ({
   responsive: true,
   maintainAspectRatio: false,
+  animation: {
+    duration: 260,
+    easing: 'easeOutQuart',
+  },
   cutout: '72%',
   plugins: {
     legend: { display: false },
@@ -402,7 +418,9 @@ const exportCsv = () => {
     <!-- Page Header with Date Format and Period Dropdown Filter -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>
-        <h1 class="text-2xl font-bold text-[#202224] dark:text-white tracking-tight">Laporan Menu Terlaris</h1>
+        <div>
+          <h1 class="text-2xl font-bold text-[#202224] dark:text-white tracking-tight">Laporan Menu Terlaris</h1>
+        </div>
         <p class="text-xs sm:text-sm text-[#606060] dark:text-[#A6A6A6] font-medium mt-0.5">
           {{ formattedCurrentDate }}
         </p>
@@ -428,18 +446,23 @@ const exportCsv = () => {
       <!-- Left: 2x2 Stat Cards Grid -->
       <div class="lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
         <AppStatCard title="Total Porsi Terjual" :value="`${formatNumber(totalSoldQty)} Porsi`" icon="restaurant_menu"
-          variant="primary" :trend="trendStats.qty" :loading="isLoading" />
+          variant="primary" :trend="trendStats.qty" :loading="isLoading"
+          :syncing="isYearLoading" />
         <AppStatCard title="Total Omset Menu" :value="formatCurrency(totalTurnover)" icon="payments" variant="secondary"
-          :trend="trendStats.turnover" :loading="isLoading" />
+          :trend="trendStats.turnover" :loading="isLoading"
+          :syncing="isYearLoading" />
         <AppStatCard title="Menu Favorit #1" :value="topItemByQty?.name || '-'" icon="emoji_events" variant="secondary"
-          :trend="trendStats.topItem" :loading="isLoading" />
+          :trend="trendStats.topItem" :loading="isLoading"
+          :syncing="isYearLoading" />
         <AppStatCard title="Kategori Terlaris" :value="topCategory?.name || '-'" icon="category" variant="secondary"
-          :trend="trendStats.topCategory" :loading="isLoading" />
+          :trend="trendStats.topCategory" :loading="isLoading"
+          :syncing="isYearLoading" />
       </div>
 
       <!-- Right: Category Distribution Doughnut Chart -->
       <div class="lg:col-span-6">
-        <AppCard title="Distribusi Kategori" subtitle="Proporsi berdasarkan kategori menu"
+        <AppCard title="Distribusi Kategori"
+          :syncing="isYearLoading" subtitle="Proporsi berdasarkan kategori menu"
           class="h-full flex flex-col justify-between">
           <template #action>
             <!-- Toggle Omset vs Porsi with Sliding Indicator -->
@@ -562,6 +585,7 @@ const exportCsv = () => {
 
     <!-- Bottom Section: Table Card with Title, Subtitle & Filter Actions in Whitespace Right -->
     <AppTable title="Daftar Menu Terlaris" subtitle="Rincian lengkap performa penjualan dan kontribusi omset per menu"
+      :syncing="isYearLoading"
       :columns="columns" :data="filteredReportTableItems" :loading="isLoading"
       emptyMessage="Belum ada data laporan penjualan menu.">
       <template #actions>

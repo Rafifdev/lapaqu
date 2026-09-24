@@ -23,7 +23,7 @@ const handleVerify = () => {
   loading.value = true
   setTimeout(() => {
     loading.value = false
-    router.push('/dashboard')
+    window.location.href = '/dashboard'
   }, 500)
 }
 </script>
@@ -34,8 +34,8 @@ const handleVerify = () => {
       <div class="w-12 h-12 rounded-2xl bg-[#CCFBF1] dark:bg-[#00B69B]/25 text-[#0D9488] dark:text-[#5EEAD4] flex items-center justify-center mx-auto mb-3">
         <AppIcon name="verified_user" :size="28" />
       </div>
-      <h2 class="text-xl font-extrabold text-[#1E293B] dark:text-white">Verifikasi Dua Langkah (2FA)</h2>
-      <p class="text-xs text-[#475569] dark:text-[#94A3B8] mt-1 font-medium">Masukkan 6 digit kode dari aplikasi Authenticator Anda</p>
+      <h2 class="text-2xl font-extrabold text-[#1E293B] dark:text-white">Verifikasi Dua Langkah (2FA)</h2>
+      <p class="text-sm text-[#475569] dark:text-[#94A3B8] mt-1.5 font-medium">Masukkan 6 digit kode dari aplikasi Authenticator Anda</p>
     </div>
 
     <div class="flex justify-center gap-2 mb-6">
@@ -48,7 +48,7 @@ const handleVerify = () => {
         maxlength="1"
         :value="digit"
         @input="handleInput(idx, $event)"
-        class="w-12 h-13 text-center text-xl font-black rounded-xl bg-[#F8FAFC] dark:bg-[#1E293B] border border-[#CBD5E1] dark:border-[#334155] focus:outline-none text-[#1E293B] dark:text-white"
+        class="w-12 h-[68px] sm:w-15 sm:h-[82px] text-center text-2xl sm:text-3xl font-black rounded-xl sm:rounded-2xl bg-[#F8FAFC] dark:bg-[#1E293B] border border-[#CBD5E1] dark:border-[#334155] focus:outline-none text-[#1E293B] dark:text-white"
       />
     </div>
 
@@ -63,7 +63,7 @@ const handleVerify = () => {
     </AppButton>
 
     <div class="mt-4 text-center">
-      <router-link to="/auth/login" class="inline-flex items-center gap-1 text-xs font-bold text-[#475569] dark:text-[#CBD5E1] hover:text-[#4880FF]">
+      <router-link to="/auth/login" class="inline-flex items-center gap-1.5 text-sm font-bold text-[#475569] dark:text-[#CBD5E1] hover:text-[#4880FF]">
         <AppIcon name="arrow_back" :size="16" />
         Kembali ke Login
       </router-link>

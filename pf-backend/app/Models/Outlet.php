@@ -15,14 +15,27 @@ class Outlet extends Model
     protected $fillable = [
         'tenant_id',
         'name',
+        'slogan',
         'address',
         'phone',
         'timezone',
         'is_active',
+        'is_main',
+        'enable_tax',
+        'tax_percentage',
+        'enable_service_charge',
+        'service_charge_percentage',
+        'table_timeout',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'is_main' => 'boolean',
+        'enable_tax' => 'boolean',
+        'tax_percentage' => 'integer',
+        'enable_service_charge' => 'boolean',
+        'service_charge_percentage' => 'integer',
+        'table_timeout' => 'integer',
     ];
 
     public function tables(): HasMany

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, watch, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
+import { useDashboardI18n } from '@/i18n'
 
 interface Props {
   modelValue: string
@@ -8,9 +9,11 @@ interface Props {
   borderless?: boolean
   rounded?: 'lg' | 'xl' | 'full'
   size?: 'sm' | 'md'
+  icon?: string
   hideSearchIcon?: boolean
   inputClass?: string
   debounce?: number
+  disabled?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -18,9 +21,18 @@ const props = withDefaults(defineProps<Props>(), {
   borderless: false,
   rounded: 'xl',
   size: 'md',
+  icon: 'search',
   hideSearchIcon: false,
   inputClass: '',
   debounce: 300,
+  disabled: false,
+})
+
+const { t } = useDashboardI18n()
+
+const computedPlaceholder = computed(() => {
+  if (props.placeholder && props.placeholder !== 'Cari sesuatu...') return props.placeholder
+  return t('common.searchSomething', 'Cari sesuatu...')
 })
 
 const emit = defineEmits<{
@@ -95,16 +107,17 @@ defineExpose({
         size === 'sm' ? 'left-2.5' : 'left-3.5'
       ]"
     >
-      <AppIcon name="search" :size="size === 'sm' ? 16 : 18" />
+      <AppIcon :name="icon || 'search'" :size="size === 'sm' ? 16 : 18" />
     </div>
     <input
       ref="inputEl"
       type="text"
       :value="innerValue"
-      :placeholder="placeholder"
+      :placeholder="computedPlaceholder"
+      :disabled="disabled"
       @input="handleInput"
       :class="[
-        'w-full font-semibold text-[#1E293B] dark:text-white transition-all placeholder:text-[#94A3B8] dark:placeholder:text-[#64748B] focus:outline-none',
+        'w-full font-semibold text-[#1E293B] dark:text-white transition-all placeholder:font-normal placeholder:text-[#94A3B8] dark:placeholder:text-[#64748B] focus:outline-none',
         size === 'sm' ? 'h-10 text-sm sm:text-base' : 'h-10.5 text-sm sm:text-base',
         hideSearchIcon
           ? 'pl-3.5 pr-8'
@@ -113,6 +126,7 @@ defineExpose({
           ? 'bg-[#F1F5F9] dark:bg-[#1E293B] border-0 focus:outline-none'
           : 'bg-[#F8FAFC] dark:bg-[#1E293B] border border-[#CBD5E1] dark:border-[#334155] focus:outline-none',
         props.rounded === 'lg' ? 'rounded-lg' : (props.rounded === 'full' ? 'rounded-full' : 'rounded-xl'),
+        disabled ? 'opacity-60 cursor-not-allowed' : '',
         props.inputClass,
       ]"
     />

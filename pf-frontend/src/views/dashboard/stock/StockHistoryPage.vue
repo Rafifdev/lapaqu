@@ -227,7 +227,7 @@ const getTypeLabel = (type: string): string => {
       <!-- Cell: Catatan / Operator -->
       <template #cell-notes="{ row }">
         <div>
-          <span class="text-xs text-[#202224] dark:text-white font-medium block truncate max-w-[180px]" :title="row.notes">
+          <span class="text-xs text-[#202224] dark:text-white font-medium block truncate max-w-[180px]" :title="row.notes || undefined">
             {{ row.notes || '-' }}
           </span>
           <span class="text-[11px] text-[#64748B] dark:text-[#94A3B8]">

@@ -28,10 +28,20 @@ export function useFormat() {
     return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
   }
 
+  const formatCustomerName = (name?: string): string => {
+    if (!name || !name.trim()) return 'Pelanggan Umum'
+    const trimmed = name.trim()
+    if (/^pelanggan\s+(meja|manual)/i.test(trimmed)) {
+      return 'Pelanggan Umum'
+    }
+    return trimmed
+  }
+
   return {
     formatCurrency,
     formatNumber,
     formatDate,
     formatTimeOnly,
+    formatCustomerName,
   }
 }

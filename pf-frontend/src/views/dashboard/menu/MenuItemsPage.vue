@@ -318,7 +318,7 @@ const executeDelete = async () => {
 
     <!-- Modal Konfirmasi Hapus Menu -->
     <AppModal v-model="isDeleteModalOpen" title="Hapus Menu Makanan" maxWidth="sm">
-      <div class="space-y-3 text-base">
+      <div class="space-y-3 text-sm">
         <p class="text-[#475569] dark:text-[#CBD5E1] leading-relaxed">
           Apakah Anda yakin ingin menghapus menu <strong class="text-[#1E293B] dark:text-white">{{ itemToDelete?.name
           }}</strong>? Tindakan ini tidak dapat dibatalkan.

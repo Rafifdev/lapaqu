@@ -1,16 +1,24 @@
 import { ref, watch, type Ref, isRef, onBeforeUnmount } from 'vue'
+import { isReducedMotion } from './useMotion'
 
 export function useAnimatedNumber(
   target: Ref<number> | (() => number),
-  duration = 800
+  baseDuration = 800
 ) {
-  const getTarget = () => {
-    if (typeof target === 'function') return target()
-    if (isRef(target)) return target.value
-    return 0
+  const getTarget = (): number => {
+    let val: any
+    if (typeof target === 'function') {
+      val = target()
+    } else if (isRef(target)) {
+      val = target.value
+    } else {
+      val = target
+    }
+    const num = Number(val)
+    return isNaN(num) ? 0 : num
   }
 
-  const current = ref(0)
+  const current = ref(getTarget())
   let animationFrameId: number | null = null
 
   const animate = (from: number, to: number) => {
@@ -24,14 +32,17 @@ export function useAnimatedNumber(
       return
     }
 
+    const diff = Math.abs(to - from)
+    // Adaptive duration: angka kecil (0-5) lebih cepat & gesit (400ms), angka besar (omset/sales) mulus 800ms
+    const duration = diff <= 5 ? Math.min(baseDuration, 420) : baseDuration
     const startTime = performance.now()
 
     const step = (now: number) => {
       const elapsed = now - startTime
       const progress = Math.min(elapsed / duration, 1)
 
-      // easeOutExpo curve: melesat cepat di awal, melambat sangat halus di akhir
-      const ease = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress)
+      // Silky smooth easeOutQuart curve
+      const ease = 1 - Math.pow(1 - progress, 4)
       current.value = Math.round(from + (to - from) * ease)
 
       if (progress < 1) {
@@ -47,10 +58,15 @@ export function useAnimatedNumber(
 
   watch(
     () => getTarget(),
-    (newVal, oldVal) => {
-      animate(oldVal ?? 0, newVal ?? 0)
+    (newVal) => {
+      if (newVal === current.value) return
+      if (isReducedMotion.value) {
+        current.value = newVal
+        return
+      }
+      animate(current.value, newVal)
     },
-    { immediate: true }
+    { immediate: false }
   )
 
   onBeforeUnmount(() => {

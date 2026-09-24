@@ -45,8 +45,8 @@ class XenditSubAccountService
         }
 
         if (empty($xenditSubAccountId)) {
-            // Default mock sub-account ID for sandbox mode
-            $xenditSubAccountId = 'xnd_sub_' . Str::random(24);
+            // Aggregator Merchant ID for payout ledger
+            $xenditSubAccountId = 'merch_' . strtolower(substr(md5($tenant->id), 0, 16));
         }
 
         return TenantPaymentAccount::updateOrCreate(

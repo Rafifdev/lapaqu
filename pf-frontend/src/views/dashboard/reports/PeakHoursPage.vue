@@ -15,30 +15,34 @@ import { useAuthStore } from '@/stores/auth'
 import apiClient from '@/services/api'
 import { useFormat } from '@/composables/useFormat'
 import { useTheme } from '@/composables/useTheme'
+import { useDashboardI18n } from '@/i18n'
 import type { ChartData, ChartOptions } from 'chart.js'
 
 const posStore = usePosStore()
 const authStore = useAuthStore()
 const { formatCurrency, formatNumber } = useFormat()
 const { isDark } = useTheme()
+const { t, translate, locale } = useDashboardI18n()
 
 const isLoading = ref(true)
+const isYearLoading = ref(false)
 
-// Period Filter: Hari ini, Minggu ini, Bulan ini (default), Weekend, Weekday
-const selectedPeriod = ref<'today' | 'week' | 'month' | 'weekend' | 'weekday'>('today')
+// Period Filter: Hari ini, Minggu ini, Bulan ini (default), Tahun ini, Weekend, Weekday
+const selectedPeriod = ref<'today' | 'week' | 'month' | 'year' | 'weekend' | 'weekday'>('today')
 
-const periodOptions = [
-  { value: 'today', label: 'Hari ini' },
-  { value: 'week', label: 'Minggu ini' },
-  { value: 'month', label: 'Bulan ini' },
-  { value: 'weekend', label: 'Akhir Pekan' },
-  { value: 'weekday', label: 'Hari Kerja' },
-]
+const periodOptions = computed(() => [
+  { value: 'today', label: locale.value === 'en' ? 'Today' : 'Hari ini' },
+  { value: 'week', label: locale.value === 'en' ? 'This Week' : 'Minggu ini' },
+  { value: 'month', label: locale.value === 'en' ? 'This Month' : 'Bulan ini' },
+  { value: 'year', label: locale.value === 'en' ? 'This Year' : 'Tahun ini' },
+  { value: 'weekend', label: locale.value === 'en' ? 'Weekend' : 'Akhir Pekan' },
+  { value: 'weekday', label: locale.value === 'en' ? 'Weekday' : 'Hari Kerja' },
+])
 
 // Formatted Date matching other reports & Dashboard
 const formattedCurrentDate = computed(() => {
   const now = new Date()
-  return new Intl.DateTimeFormat('id-ID', {
+  return new Intl.DateTimeFormat(locale.value === 'en' ? 'en-US' : 'id-ID', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -53,6 +57,8 @@ const periodTrendLabel = computed(() => {
       return 'From yesterday:'
     case 'week':
       return 'From last week:'
+    case 'year':
+      return 'From last year:'
     case 'weekend':
       return 'From last weekend:'
     case 'weekday':
@@ -131,8 +137,10 @@ interface TimeZoneSlot {
 const processedHourlyData = ref<HourlySlot[]>([])
 const timeZoneDistribution = ref<TimeZoneSlot[]>([])
 
-const fetchHourlyData = async () => {
-  isLoading.value = true
+const fetchHourlyData = async (isInitial = false) => {
+  if (isInitial || processedHourlyData.value.length === 0) {
+    isLoading.value = true
+  }
   try {
     await authStore.ensureToken()
     const res = await apiClient.get('/reports/hourly-sales', {
@@ -149,8 +157,15 @@ const fetchHourlyData = async () => {
   }
 }
 
-watch(selectedPeriod, () => {
-  fetchHourlyData()
+watch(selectedPeriod, async (newVal) => {
+  if (newVal === 'year') {
+    isYearLoading.value = true
+  }
+  try {
+    await fetchHourlyData(false)
+  } finally {
+    isYearLoading.value = false
+  }
 })
 
 // ==========================================
@@ -184,6 +199,10 @@ const totalDoughnutLabel = computed(() => {
 const doughnutChartOptions = computed<ChartOptions<'doughnut'>>(() => ({
   responsive: true,
   maintainAspectRatio: false,
+  animation: {
+    duration: 260,
+    easing: 'easeOutQuart',
+  },
   cutout: '72%',
   plugins: {
     legend: { display: false },
@@ -238,6 +257,10 @@ const hourlyChartData = computed<ChartData<'bar'>>(() => {
 const hourlyChartOptions = computed<ChartOptions<'bar'>>(() => ({
   responsive: true,
   maintainAspectRatio: false,
+  animation: {
+    duration: 260,
+    easing: 'easeOutQuart',
+  },
   plugins: {
     legend: { display: false },
     tooltip: {
@@ -374,9 +397,11 @@ const exportCsv = () => {
     <!-- Page Header: Title + Realtime Date (Left) & Period Filter + Export CSV (Right) -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div>
-        <h1 class="text-2xl font-bold text-[#202224] dark:text-white tracking-tight">
-          Laporan Jam Ramai
-        </h1>
+        <div>
+          <h1 class="text-2xl font-bold text-[#202224] dark:text-white tracking-tight">
+            Laporan Jam Ramai
+          </h1>
+        </div>
         <p class="text-xs sm:text-sm text-[#606060] dark:text-[#A6A6A6] font-medium mt-0.5">
           {{ formattedCurrentDate }}
         </p>
@@ -413,6 +438,7 @@ const exportCsv = () => {
           value="19:00 - 20:00"
           :trend="trendStats.dinner"
           :loading="isLoading"
+          :syncing="isYearLoading"
           variant="primary"
           icon="nights_stay"
           tooltip="Jam operasional dengan volume pesanan dan antrean terpadat pada waktu malam."
@@ -424,6 +450,7 @@ const exportCsv = () => {
           value="12:00 - 13:00"
           :trend="trendStats.lunch"
           :loading="isLoading"
+          :syncing="isYearLoading"
           variant="secondary"
           icon="wb_sunny"
           tooltip="Jam makan siang tersibuk di mana pesanan dine-in dan takeaway melonjak tajam."
@@ -435,6 +462,7 @@ const exportCsv = () => {
           value="42 Menit"
           :trend="trendStats.duration"
           :loading="isLoading"
+          :syncing="isYearLoading"
           variant="secondary"
           icon="timer"
           tooltip="Estimasi waktu yang dihabiskan pelanggan per sesi meja makan dari order hingga pembayaran."
@@ -446,6 +474,7 @@ const exportCsv = () => {
           value="68.4% Omset"
           :trend="trendStats.rushRevenue"
           :loading="isLoading"
+          :syncing="isYearLoading"
           variant="secondary"
           icon="trending_up"
           tooltip="Persentase total omset yang dikontribusikan selama rentang jam ramai (Lunch & Dinner)."
@@ -575,6 +604,7 @@ const exportCsv = () => {
     <AppTable
       title="Rincian Kepadatan Jam Operasional"
       subtitle="Analisis detail volume transaksi dan omset di setiap jam operasional."
+      :syncing="isYearLoading"
       :columns="tableColumns"
       :data="filteredHourlyTable"
       :loading="isLoading"

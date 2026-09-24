@@ -18,7 +18,12 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->api(prepend: [
+            \App\Http\Middleware\AuthenticateFromStaffCookie::class,
             ResolveTenantContext::class,
+        ]);
+
+        $middleware->encryptCookies(except: [
+            'lapaqu_staff_session',
         ]);
 
         $middleware->alias([

@@ -13,13 +13,9 @@ class TableSeeder extends Seeder
 {
     public function run(): void
     {
-        $tenant = Tenant::first();
-        if (!$tenant) return;
+        $outlets = Outlet::all();
+        if ($outlets->isEmpty()) return;
 
-        $outlet = Outlet::where('tenant_id', $tenant->id)->first();
-        if (!$outlet) return;
-
-        // 10 Tables with capacities
         $tablesData = [
             ['num' => '01', 'capacity' => 2],
             ['num' => '02', 'capacity' => 4],
@@ -33,26 +29,30 @@ class TableSeeder extends Seeder
             ['num' => '10', 'capacity' => 8],
         ];
 
-        foreach ($tablesData as $idx => $tData) {
-            $num = $tData['num'];
-            $table = Table::updateOrCreate(
-                ['tenant_id' => $tenant->id, 'outlet_id' => $outlet->id, 'table_number' => "Meja {$num}"],
-                [
-                    'capacity' => $tData['capacity'],
-                    'qr_code_token' => "qr_senopati_{$num}",
-                    'is_active' => true,
-                ]
-            );
+        foreach ($outlets as $outlet) {
+            $tenant = $outlet->tenant;
+            if (!$tenant) continue;
 
-            // Seed active session on table 01 and table 03 for realistic live demonstration
-            if (in_array($num, ['01', '03'])) {
-                TableSession::firstOrCreate(
-                    ['table_id' => $table->id, 'status' => 'active'],
+            foreach ($tablesData as $idx => $tData) {
+                $num = $tData['num'];
+                $table = Table::updateOrCreate(
+                    ['tenant_id' => $tenant->id, 'outlet_id' => $outlet->id, 'table_number' => "Meja {$num}"],
                     [
-                        'customer_identifier' => "Pelanggan Meja {$num}",
-                        'opened_at' => now()->subMinutes(15 * ($idx + 1)),
+                        'capacity' => $tData['capacity'],
+                        'qr_code_token' => "qr_{$outlet->id}_{$num}",
+                        'is_active' => true,
                     ]
                 );
+
+                if (in_array($num, ['01', '03'])) {
+                    TableSession::firstOrCreate(
+                        ['table_id' => $table->id, 'status' => 'active'],
+                        [
+                            'customer_identifier' => "Pelanggan Meja {$num}",
+                            'opened_at' => now()->subMinutes(15 * ($idx + 1)),
+                        ]
+                    );
+                }
             }
         }
     }

@@ -178,8 +178,8 @@ const saveIngredient = async () => {
       await posStore.updateIngredient(editingIngredientId.value, {
         name: formIngName.value.trim(),
         unit: formIngUnit.value.trim(),
-        low_stock_threshold: formIngThreshold.value === '' ? null : Number(formIngThreshold.value),
-        cost_per_unit: formIngCost.value === '' ? null : Number(formIngCost.value),
+        low_stock_threshold: formIngThreshold.value === '' ? undefined : Number(formIngThreshold.value),
+        cost_per_unit: formIngCost.value === '' ? undefined : Number(formIngCost.value),
       })
       notify('Bahan baku berhasil diperbarui!')
     } else {
@@ -187,8 +187,8 @@ const saveIngredient = async () => {
         name: formIngName.value.trim(),
         unit: formIngUnit.value.trim(),
         current_stock: formIngStock.value === '' ? 0 : Number(formIngStock.value),
-        low_stock_threshold: formIngThreshold.value === '' ? null : Number(formIngThreshold.value),
-        cost_per_unit: formIngCost.value === '' ? null : Number(formIngCost.value),
+        low_stock_threshold: formIngThreshold.value === '' ? undefined : Number(formIngThreshold.value),
+        cost_per_unit: formIngCost.value === '' ? undefined : Number(formIngCost.value),
       })
       notify('Bahan baku berhasil ditambahkan!')
     }

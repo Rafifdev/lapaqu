@@ -126,7 +126,7 @@ onBeforeUnmount(() => {
         :step="step"
         @input="handleInput"
         :class="[
-          'w-full bg-white dark:bg-[#1B2431] border rounded-xl py-2.5 text-sm font-semibold text-[#1E293B] dark:text-white placeholder-[#94A3B8] transition-all focus:outline-none disabled:opacity-50 disabled:bg-[#F1F5F9] dark:disabled:bg-[#334155]',
+          'w-full bg-white dark:bg-[#1B2431] border rounded-xl py-2.5 text-sm font-semibold text-[#1E293B] dark:text-white placeholder-[#94A3B8] placeholder:font-normal transition-all focus:outline-none disabled:opacity-50 disabled:bg-[#F1F5F9] dark:disabled:bg-[#334155]',
           error
             ? 'border-rose-500 '
             : 'border-[#CBD5E1] dark:border-[#334155] ',

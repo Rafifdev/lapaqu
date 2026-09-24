@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
-import AppBadge from '@/components/ui/AppBadge.vue'
 import { useFormat } from '@/composables/useFormat'
 import type { MenuItem } from '@/types'
 
@@ -78,10 +77,10 @@ const handleImageError = (e: Event) => {
   <!-- Skeleton Loading State (Default Built-in Skeleton) -->
   <div
     v-if="loading"
-    class="relative h-[305px] md:h-[315px] lg:h-[315px] xl:h-[305px] w-full bg-white dark:bg-[#273142] rounded-2xl border border-[#EAEAEA] dark:border-[#313D4F] shadow-xs flex flex-col justify-between overflow-hidden animate-pulse"
+    class="relative h-[275px] md:h-[285px] lg:h-[285px] xl:h-[275px] w-full bg-white dark:bg-[#273142] rounded-2xl shadow-xs flex flex-col justify-between overflow-hidden animate-pulse"
   >
     <!-- Top Image Skeleton -->
-    <div class="h-[165px] md:h-[172px] lg:h-[172px] xl:h-[165px] w-full bg-[#E2E8F0] dark:bg-[#334155] shrink-0 rounded-t-2xl relative">
+    <div class="h-[148px] md:h-[155px] lg:h-[155px] xl:h-[148px] w-full bg-[#E2E8F0] dark:bg-[#334155] shrink-0 rounded-t-2xl relative">
       <div class="absolute top-2.5 left-2.5 h-6 w-16 bg-white/40 dark:bg-slate-600/40 rounded-full"></div>
     </div>
 
@@ -102,11 +101,11 @@ const handleImageError = (e: Event) => {
   <div
     v-else-if="item"
     @click="handleCardClick"
-    class="relative h-[305px] md:h-[315px] lg:h-[315px] xl:h-[305px] w-full bg-white dark:bg-[#273142] rounded-2xl border border-[#EAEAEA] dark:border-[#313D4F] shadow-xs flex flex-col justify-between overflow-hidden cursor-pointer select-none"
+    class="relative h-[275px] md:h-[285px] lg:h-[285px] xl:h-[275px] w-full bg-white dark:bg-[#273142] rounded-2xl border border-[#EAEAEA] dark:border-[#313D4F] shadow-xs flex flex-col justify-between overflow-hidden cursor-pointer select-none"
   >
     <!-- 1. Top Image (Dominant, appetizing image height) -->
     <div
-      class="h-[165px] md:h-[172px] lg:h-[172px] xl:h-[165px] w-full bg-[#F8FAFC] dark:bg-[#1B2431] overflow-hidden shrink-0 relative rounded-t-2xl"
+      class="h-[148px] md:h-[155px] lg:h-[155px] xl:h-[148px] w-full bg-[#F8FAFC] dark:bg-[#1B2431] overflow-hidden shrink-0 relative rounded-t-2xl"
     >
       <img
         :src="item.imageUrl || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop&q=80'"
@@ -133,19 +132,9 @@ const handleImageError = (e: Event) => {
         </span>
       </div>
 
-      <!-- Top-Right Slot (Custom Actions/Badge or Quantity Badge on Tablet & Mobile) -->
-      <div class="absolute top-2.5 right-2.5 z-10">
-        <slot name="top-right">
-          <div v-if="quantity > 0" class="pointer-events-none">
-            <AppBadge
-              variant="primary"
-              rounded="full"
-              class="!w-7 !h-7 !p-0 !min-w-0 !rounded-full !aspect-square !flex !items-center !justify-center !bg-[#4880FF]/90 !text-white !text-xs !font-normal !border-0 !shadow-sm tabular-nums"
-            >
-              {{ quantity }}
-            </AppBadge>
-          </div>
-        </slot>
+      <!-- Top-Right Slot (Custom Actions/Badge) -->
+      <div v-if="$slots['top-right']" class="absolute top-2.5 right-2.5 z-10">
+        <slot name="top-right" />
       </div>
 
 

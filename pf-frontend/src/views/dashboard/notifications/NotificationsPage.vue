@@ -1,13 +1,18 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Bell, CheckCheck } from 'lucide-vue-next'
+import { Bell, CheckCheck, Inbox } from 'lucide-vue-next'
 import AppCard from '@/components/ui/AppCard.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 
-const notifications = ref([
-  { id: '1', title: 'Order Masuk #ORD-260830-001', message: 'Pelanggan di Meja M03 telah menyelesaikan pembayaran QRIS Rp 72.000.', time: '5 menit lalu', isRead: false },
-  { id: '2', title: 'Pengingat Masa Aktif Paket', message: 'Paket langganan Anda aktif hingga 31 September 2026.', time: '1 hari lalu', isRead: true },
-])
+interface NotificationItem {
+  id: string
+  title: string
+  message: string
+  time: string
+  isRead: boolean
+}
+
+const notifications = ref<NotificationItem[]>([])
 
 const markAllRead = () => {
   notifications.value.forEach(n => n.isRead = true)
@@ -21,7 +26,12 @@ const markAllRead = () => {
         <h1 class="text-2xl font-bold text-[#202224] dark:text-white">Pusat Notifikasi</h1>
       </div>
 
-      <AppButton @click="markAllRead" variant="outline" size="sm">
+      <AppButton
+        v-if="notifications.length > 0"
+        @click="markAllRead"
+        variant="outline"
+        size="sm"
+      >
         <template #prefix>
           <CheckCheck class="w-4 h-4" />
         </template>
@@ -29,7 +39,22 @@ const markAllRead = () => {
       </AppButton>
     </div>
 
-    <div class="space-y-3">
+    <!-- Empty State -->
+    <div
+      v-if="notifications.length === 0"
+      class="p-12 text-center bg-white dark:bg-[#273142] rounded-2xl border border-[#E8E8E8] dark:border-[#313D4F] shadow-[0_4px_25px_rgba(0,0,0,0.06)] dark:shadow-none"
+    >
+      <div class="w-14 h-14 rounded-2xl bg-[#F5F6FA] dark:bg-[#1E293B] flex items-center justify-center mx-auto mb-3 text-[#64748B]">
+        <Bell class="w-6 h-6 text-[#4880FF]" />
+      </div>
+      <h3 class="text-base font-bold text-[#202224] dark:text-white">Tidak Ada Notifikasi Baru</h3>
+      <p class="text-xs text-[#64748B] dark:text-[#94A3B8] mt-1 max-w-sm mx-auto">
+        Semua pembaruan pesanan transaksi, status meja, dan langganan akan muncul di sini.
+      </p>
+    </div>
+
+    <!-- Notification List -->
+    <div v-else class="space-y-3">
       <div
         v-for="n in notifications"
         :key="n.id"

@@ -21,14 +21,41 @@ class MenuItemController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $outletId = $request->query('outlet_id') ?: ($request->user()?->outlet_id ?: Outlet::first()?->id);
+        $outletId = $request->query('outlet_id');
         $categoryId = $request->query('category_id');
         $search = $request->query('search');
 
-        $query = MenuItem::with(['category', 'variantGroups.options', 'recipes.ingredient']);
+        $outlet = null;
+        if ($outletId) {
+            $outlet = Outlet::withoutGlobalScopes()->find($outletId);
+        }
+        if (!$outlet && $request->user()?->outlet_id) {
+            $outlet = Outlet::withoutGlobalScopes()->find($request->user()->outlet_id);
+            $outletId = $outlet?->id;
+        }
+        if (!$outlet && $request->user()?->tenant_id) {
+            $outlet = Outlet::withoutGlobalScopes()->where('tenant_id', $request->user()->tenant_id)->first();
+            $outletId = $outlet?->id;
+        }
+        if (!$outlet) {
+            $outlet = Outlet::withoutGlobalScopes()->whereHas('menuItems')->first()
+                   ?: Outlet::withoutGlobalScopes()->first();
+            $outletId = $outlet?->id;
+        }
+
+        $tenantId = $outlet?->tenant_id ?: ($request->user()?->tenant_id ?: (app()->bound('tenant_id') ? app('tenant_id') : null));
+
+        $query = MenuItem::withoutGlobalScopes()->with(['category', 'variantGroups.options', 'recipes.ingredient']);
 
         if ($outletId) {
-            $query->where('outlet_id', $outletId);
+            $hasOutletItems = MenuItem::withoutGlobalScopes()->where('outlet_id', $outletId)->exists();
+            if ($hasOutletItems) {
+                $query->where('outlet_id', $outletId);
+            } elseif ($tenantId) {
+                $query->where('tenant_id', $tenantId);
+            }
+        } elseif ($tenantId) {
+            $query->where('tenant_id', $tenantId);
         }
 
         if ($categoryId) {

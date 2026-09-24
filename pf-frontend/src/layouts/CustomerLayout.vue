@@ -1,17 +1,20 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue'
+import AppPageTransition from '@/components/ui/AppPageTransition.vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import AppSearchInput from '@/components/ui/AppSearchInput.vue'
 import AppFloatingCartBar from '@/components/customer/AppFloatingCartBar.vue'
 import { useCartStore } from '@/stores/cart'
 import apiClient from '@/services/api'
+import { useCustomerI18n } from '@/i18n'
 
 const route = useRoute()
 const router = useRouter()
 const cartStore = useCartStore()
-const tenantName = ref(localStorage.getItem('lapaqu_tenant_name') || 'Kopi Kenangan Senopati')
-const outletName = ref(localStorage.getItem('lapaqu_outlet_name') || 'Cabang Senopati Utama')
+const { t, translate } = useCustomerI18n()
+const tenantName = ref(localStorage.getItem('lapaqu_tenant_name') || 'Lapaqu Resto')
+const outletName = ref(localStorage.getItem('lapaqu_outlet_name') || '')
 
 const isSearchOpen = computed(() => cartStore.isSearchOpen)
 const searchInputRef = ref<any>(null)
@@ -19,7 +22,7 @@ const searchInputRef = ref<any>(null)
 const openSearch = () => {
   cartStore.isSearchOpen = true
   nextTick(() => {
-    searchInputRef.value?.focus?.() || document.querySelector('header input')?.focus()
+    searchInputRef.value?.focus?.() || (document.querySelector('header input') as HTMLElement)?.focus()
   })
 }
 
@@ -42,10 +45,38 @@ onMounted(async () => {
   } catch {
     // fallback
   }
+
+  // Polling order status setiap 3 detik untuk notifikasi titik merah di icon proses pesanan
+  checkOrderStatusUpdate()
+  orderPollInterval = setInterval(checkOrderStatusUpdate, 3000)
 })
 
-const outletId = computed(() => (route.params.outletId as string) || 'outlet-001')
-const tableCode = computed(() => (route.params.tableCode as string) || cartStore.tableCode || 'M03')
+onUnmounted(() => {
+  if (orderPollInterval) {
+    clearInterval(orderPollInterval)
+    orderPollInterval = null
+  }
+})
+
+// Sinkronisasi outlet, meja & token dari URL ke cartStore
+watch(
+  () => [route.params.outletId, route.params.tableCode, route.query.token],
+  ([newOutlet, newTable, newToken]) => {
+    if (newOutlet) {
+      cartStore.outletId = newOutlet as string
+    }
+    if (newTable) {
+      cartStore.tableCode = decodeURIComponent(newTable as string)
+    }
+    if (newToken) {
+      localStorage.setItem('lapaqu_table_token', newToken as string)
+    }
+  },
+  { immediate: true }
+)
+
+const outletId = computed(() => (route.params.outletId as string) || cartStore.outletId || '')
+const tableCode = computed(() => (route.params.tableCode as string) || cartStore.tableCode || '')
 
 const menuUrl = computed(() => `/order/${outletId.value}/${tableCode.value}`)
 const cartUrl = computed(() => `/order/${outletId.value}/${tableCode.value}/my-order`)
@@ -53,8 +84,84 @@ const myOrderUrl = computed(() => `/order/${outletId.value}/${tableCode.value}/m
 const statusUrl = computed(() => `/order/${outletId.value}/${tableCode.value}/status`)
 
 const isActive = (path: string) => route.path === path
+
+// Tracking status pesanan & notifikasi titik merah di icon proses pesanan
+const currentStatusFingerprint = ref('')
+const hasStatusNotification = ref(false)
+let orderPollInterval: any = null
+
+const buildFingerprint = (orders: any[]) => {
+  if (!orders || orders.length === 0) return ''
+  return orders.map((o) => `${o.id}:${o.status}:${o.payment_status}`).join('|')
+}
+
+const checkOrderStatusUpdate = async () => {
+  if (!tableCode.value || !outletId.value) return
+
+  try {
+    const res = await apiClient.get('/public/orders/active', {
+      params: {
+        table_code: tableCode.value,
+        outlet_id: outletId.value,
+      },
+    })
+
+    let orders: any[] = []
+    if (res.data?.orders && Array.isArray(res.data.orders)) {
+      orders = res.data.orders
+    } else if (res.data?.order) {
+      orders = [res.data.order]
+    }
+
+    // Filter hanya pesanan yang valid (sudah dibayar & minimal confirmed)
+    const validStatuses = ['confirmed', 'processing', 'preparing', 'cooking', 'ready', 'completed']
+    orders = orders.filter((o: any) =>
+      validStatuses.includes(o.status) &&
+      o.payment_status === 'paid' &&
+      o.status !== 'cancelled' &&
+      o.status !== 'expired' &&
+      o.status !== 'pending_payment'
+    )
+
+    const fp = buildFingerprint(orders)
+    currentStatusFingerprint.value = fp
+
+    const isViewingStatus = route.name === 'customer-order-status' || route.path.includes('/status')
+
+    if (isViewingStatus) {
+      if (fp) {
+        localStorage.setItem('lapaqu_viewed_status_fingerprint', fp)
+      }
+      hasStatusNotification.value = false
+    } else {
+      const savedFp = localStorage.getItem('lapaqu_viewed_status_fingerprint') || ''
+      // Tampilkan notifikasi jika ada pesanan dan statusnya berbeda dengan yang terakhir dilihat
+      if (fp && fp !== savedFp) {
+        hasStatusNotification.value = true
+      } else {
+        hasStatusNotification.value = false
+      }
+    }
+
+    if (orders.length > 0) {
+      const latestOrder = orders[orders.length - 1]
+      localStorage.setItem('lapaqu_active_order_id', latestOrder.id)
+    } else {
+      localStorage.removeItem('lapaqu_active_order_id')
+      hasStatusNotification.value = false
+    }
+  } catch {
+    // silently fail
+  }
+}
+
 const goToOrderStatus = () => {
   const activeId = localStorage.getItem('lapaqu_active_order_id')
+  if (currentStatusFingerprint.value) {
+    localStorage.setItem('lapaqu_viewed_status_fingerprint', currentStatusFingerprint.value)
+  }
+  hasStatusNotification.value = false
+
   if (activeId) {
     router.push(`${statusUrl.value}?orderId=${activeId}`)
   } else {
@@ -62,8 +169,21 @@ const goToOrderStatus = () => {
   }
 }
 
+watch(
+  () => route.path,
+  (newPath) => {
+    if (newPath.includes('/status')) {
+      if (currentStatusFingerprint.value) {
+        localStorage.setItem('lapaqu_viewed_status_fingerprint', currentStatusFingerprint.value)
+      }
+      hasStatusNotification.value = false
+    }
+    checkOrderStatusUpdate()
+  },
+  { immediate: true }
+)
+
 const isMenuPage = computed(() => route.name === 'customer-menu' || route.path === menuUrl.value)
-const hasActiveOrder = computed(() => !!localStorage.getItem('lapaqu_active_order_id') || cartStore.hasPendingOrder)
 </script>
 
 <template>
@@ -95,7 +215,7 @@ const hasActiveOrder = computed(() => !!localStorage.getItem('lapaqu_active_orde
             type="button"
             @click="closeSearch"
             class="w-9 h-9 -ml-1 flex items-center justify-center rounded-full text-[#1E293B] hover:text-[#4880FF] dark:text-white dark:hover:text-[#4880FF] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] active:scale-90 transition-all cursor-pointer shrink-0"
-            title="Kembali"
+            :title="t('header.backToMenu')"
           >
             <AppIcon name="arrow_back" :size="24" />
           </button>
@@ -105,7 +225,7 @@ const hasActiveOrder = computed(() => !!localStorage.getItem('lapaqu_active_orde
             <AppSearchInput
               ref="searchInputRef"
               v-model="cartStore.searchQuery"
-              placeholder="Cari makanan"
+              :placeholder="t('header.searchPlaceholder')"
               borderless
               rounded="lg"
                             hideSearchIcon
@@ -120,12 +240,12 @@ const hasActiveOrder = computed(() => !!localStorage.getItem('lapaqu_active_orde
             type="button"
             @click="router.push(menuUrl)"
             class="w-9 h-9 -ml-1 flex items-center justify-center rounded-full text-[#1E293B] hover:text-[#4880FF] dark:text-white dark:hover:text-[#4880FF] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] active:scale-90 transition-all cursor-pointer shrink-0"
-            title="Kembali ke Menu"
+            :title="t('header.backToMenu')"
           >
             <AppIcon name="arrow_back" :size="24" />
           </button>
           <h1 class="text-lg sm:text-xl font-bold text-[#1E293B] dark:text-white tracking-tight">
-            Pesanan Saya
+            {{ t('header.myOrders') }}
           </h1>
         </div>
 
@@ -151,7 +271,7 @@ const hasActiveOrder = computed(() => !!localStorage.getItem('lapaqu_active_orde
               type="button"
               @click="openSearch"
               class="w-10 h-10 flex items-center justify-center rounded-xl text-[#64748B] hover:text-[#1E293B] dark:text-[#94A3B8] dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#334155] active:scale-95 transition-all cursor-pointer relative"
-              title="Cari Menu"
+              :title="t('header.searchMenu')"
             >
               <AppIcon name="search" :size="22" />
               <span
@@ -165,13 +285,16 @@ const hasActiveOrder = computed(() => !!localStorage.getItem('lapaqu_active_orde
               type="button"
               @click="goToOrderStatus"
               class="w-10 h-10 flex items-center justify-center rounded-xl text-[#64748B] hover:text-[#1E293B] dark:text-[#94A3B8] dark:hover:text-white hover:bg-[#F1F5F9] dark:hover:bg-[#334155] active:scale-95 transition-all cursor-pointer relative"
-              title="Proses Pesanan"
+              :title="t('header.orderProcess')"
             >
               <AppIcon name="receipt_long" :size="22" />
               <span
-                v-if="hasActiveOrder"
-                class="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-[#00B69B] ring-2 ring-white dark:ring-[#273142] animate-pulse"
-              />
+                v-if="hasStatusNotification"
+                class="absolute top-2 right-2 flex h-2.5 w-2.5"
+              >
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#EF4444] opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#EF4444]"></span>
+              </span>
             </button>
           </div>
           <!-- Button Back di Kanan jika di luar menu page -->
@@ -180,7 +303,7 @@ const hasActiveOrder = computed(() => !!localStorage.getItem('lapaqu_active_orde
               type="button"
               @click="router.push(menuUrl)"
               class="w-9 h-9 flex items-center justify-center rounded-full text-[#1E293B] hover:text-[#4880FF] dark:text-white dark:hover:text-[#4880FF] hover:bg-[#F1F5F9] dark:hover:bg-[#334155] active:scale-90 transition-all cursor-pointer"
-              title="Kembali ke Menu"
+              :title="t('header.backToMenu')"
             >
               <AppIcon name="arrow_back" :size="24" />
             </button>
@@ -206,7 +329,9 @@ const hasActiveOrder = computed(() => !!localStorage.getItem('lapaqu_active_orde
 
       <!-- Main Content Page -->
       <main :class="route.name === 'customer-va-instructions' ? 'p-0 flex-1' : 'flex-1 p-4 pb-6'">
-        <router-view />
+        <router-view v-slot="{ Component, route: customerRoute }">
+          <AppPageTransition :component="Component" :route="customerRoute" />
+        </router-view>
       </main>
 
       <!-- Floating Cart Bar (ShopeeFood / GrabFood style) -->

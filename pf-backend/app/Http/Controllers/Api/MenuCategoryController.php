@@ -12,11 +12,38 @@ class MenuCategoryController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $outletId = $request->query('outlet_id') ?: ($request->user()?->outlet_id ?: Outlet::first()?->id);
-        
-        $query = MenuCategory::query();
+        $outletId = $request->query('outlet_id');
+
+        $outlet = null;
         if ($outletId) {
-            $query->where('outlet_id', $outletId);
+            $outlet = Outlet::withoutGlobalScopes()->find($outletId);
+        }
+        if (!$outlet && $request->user()?->outlet_id) {
+            $outlet = Outlet::withoutGlobalScopes()->find($request->user()->outlet_id);
+            $outletId = $outlet?->id;
+        }
+        if (!$outlet && $request->user()?->tenant_id) {
+            $outlet = Outlet::withoutGlobalScopes()->where('tenant_id', $request->user()->tenant_id)->first();
+            $outletId = $outlet?->id;
+        }
+        if (!$outlet) {
+            $outlet = Outlet::withoutGlobalScopes()->whereHas('menuItems')->first()
+                   ?: Outlet::withoutGlobalScopes()->first();
+            $outletId = $outlet?->id;
+        }
+
+        $tenantId = $outlet?->tenant_id ?: ($request->user()?->tenant_id ?: (app()->bound('tenant_id') ? app('tenant_id') : null));
+
+        $query = MenuCategory::withoutGlobalScopes();
+        if ($outletId) {
+            $hasOutletCategories = MenuCategory::withoutGlobalScopes()->where('outlet_id', $outletId)->exists();
+            if ($hasOutletCategories) {
+                $query->where('outlet_id', $outletId);
+            } elseif ($tenantId) {
+                $query->where('tenant_id', $tenantId);
+            }
+        } elseif ($tenantId) {
+            $query->where('tenant_id', $tenantId);
         }
 
         $categories = $query->orderBy('sort_order', 'asc')

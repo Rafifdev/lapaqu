@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useCartStore } from '@/stores/cart'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import { ALL_VA_BANKS, getBankVAInfo } from '@/composables/useBankVA'
 
 const route = useRoute()
 const router = useRouter()
+const cartStore = useCartStore()
 
 const bankQuery = computed(() => (route.query.bank as string || 'bri').toLowerCase())
 const bankInfo = computed(() => getBankVAInfo(bankQuery.value) || ALL_VA_BANKS[0])
@@ -130,8 +132,8 @@ const currentGuideSections = computed<GuideSection[]>(() => {
 })
 
 const handleClose = () => {
-  const outletId = (route.params.outletId as string) || 'outlet-001'
-  const tableCode = (route.params.tableCode as string) || 'M03'
+  const outletId = (route.params.outletId as string) || cartStore.outletId || ''
+  const tableCode = (route.params.tableCode as string) || cartStore.tableCode || ''
   router.push({
     name: 'customer-my-order',
     params: { outletId, tableCode },

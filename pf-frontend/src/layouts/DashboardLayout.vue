@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppPageTransition from '@/components/ui/AppPageTransition.vue'
 import { ref } from 'vue'
 import AppSidebar from '@/components/layout/AppSidebar.vue'
 
@@ -22,9 +23,7 @@ const toggleSidebar = () => {
     <div class="flex-1 flex flex-col min-w-0">
       <main class="flex-1 p-4 md:p-6 max-w-[1380px] w-full mx-auto">
         <router-view v-slot="{ Component, route: currentRoute }">
-          <transition name="page-fade" mode="out-in">
-            <component :is="Component" :key="currentRoute.path" />
-          </transition>
+          <AppPageTransition :component="Component" :route="currentRoute" />
         </router-view>
       </main>
     </div>

@@ -27,6 +27,19 @@ return [
         'secret_key' => env('XENDIT_SECRET_KEY', ''),
         'callback_token' => env('XENDIT_CALLBACK_TOKEN', ''),
         'base_url' => env('XENDIT_BASE_URL', 'https://api.xendit.co'),
+        'use_xenplatform' => env('XENDIT_USE_XENPLATFORM', false),
+    ],
+
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI'),
+    ],
+
+    'facebook' => [
+        'client_id' => env('FACEBOOK_CLIENT_ID'),
+        'client_secret' => env('FACEBOOK_CLIENT_SECRET'),
+        'redirect' => env('FACEBOOK_REDIRECT_URI'),
     ],
 
 ];

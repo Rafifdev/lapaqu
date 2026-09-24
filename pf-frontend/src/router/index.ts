@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { isSessionExpired, clearSessionStorage } from '@/utils/session'
 
 // Layouts
 import DashboardLayout from '@/layouts/DashboardLayout.vue'
@@ -7,24 +8,85 @@ import PosLayout from '@/layouts/PosLayout.vue'
 import KdsLayout from '@/layouts/KdsLayout.vue'
 import AuthLayout from '@/layouts/AuthLayout.vue'
 
+const getPairedOutlet = () => {
+  const saved = localStorage.getItem('lapaqu_paired_outlet')
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved)
+      if (parsed?.id) return parsed
+    } catch {}
+  }
+  return null
+}
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    // Redirect root to dashboard
+    // Default Root Route: jika perangkat sudah dipair, diarahkan ke pilihan staff
     {
       path: '/',
-      redirect: '/dashboard',
+      redirect: () => {
+        const paired = getPairedOutlet()
+        return paired ? '/auth/outlet-staff' : '/auth/login'
+      },
+    },
+
+    // Alias /login
+    {
+      path: '/login',
+      redirect: () => {
+        const paired = getPairedOutlet()
+        return paired ? '/auth/outlet-staff' : '/auth/login'
+      },
+    },
+    // Alias /register to /auth/register
+    {
+      path: '/register',
+      redirect: '/auth/register',
+    },
+    // Alias /outlet/login
+    {
+      path: '/outlet/login',
+      redirect: () => {
+        const paired = getPairedOutlet()
+        return paired ? '/auth/outlet-staff' : '/auth/outlet-login'
+      },
+    },
+    {
+      path: '/outlet/staff',
+      redirect: '/auth/outlet-staff',
     },
 
     // ================= AUTH ROUTES =================
     {
       path: '/auth',
       component: AuthLayout,
+      meta: { guestOnly: true },
       children: [
         {
           path: 'login',
           name: 'login',
           component: () => import('@/views/auth/LoginPage.vue'),
+        },
+        {
+          path: 'callback',
+          name: 'auth-callback',
+          component: () => import('@/views/auth/GoogleCallback.vue'),
+        },
+        {
+          path: 'register',
+          name: 'register',
+          component: () => import('@/views/auth/RegisterPage.vue'),
+        },
+        {
+          path: 'outlet-login',
+          name: 'outlet-login',
+          component: () => import('@/views/auth/OutletLoginPage.vue'),
+        },
+        {
+          path: 'outlet-staff',
+          name: 'outlet-staff',
+          component: () => import('@/views/auth/OutletStaffLoginPage.vue'),
         },
         {
           path: 'verify-2fa',
@@ -53,6 +115,7 @@ const router = createRouter({
     {
       path: '/order/:outletId/:tableCode',
       component: CustomerLayout,
+      meta: { requiresAuth: false },
       children: [
         {
           path: '',
@@ -105,10 +168,13 @@ const router = createRouter({
       ],
     },
 
+
+
     // ================= POS KASIR ROUTES =================
     {
       path: '/pos',
       component: PosLayout,
+      meta: { requiresAuth: true, roles: ['owner', 'kasir', 'superadmin'] },
       children: [
         {
           path: '',
@@ -151,6 +217,7 @@ const router = createRouter({
     {
       path: '/kds',
       component: KdsLayout,
+      meta: { requiresAuth: true, roles: ['owner', 'kitchen_staff', 'kasir', 'superadmin'] },
       children: [
         {
           path: '',
@@ -166,6 +233,11 @@ const router = createRouter({
           name: 'kds-completed',
           component: () => import('@/views/kds/CompletedOrdersPage.vue'),
         },
+        {
+          path: 'history',
+          name: 'kds-history',
+          component: () => import('@/views/kds/OrderHistoryPage.vue'),
+        },
       ],
     },
 
@@ -173,6 +245,7 @@ const router = createRouter({
     {
       path: '/dashboard',
       component: DashboardLayout,
+      meta: { requiresAuth: true, roles: ['owner', 'store_manager', 'superadmin'] },
       children: [
         {
           path: '',
@@ -284,6 +357,7 @@ const router = createRouter({
           path: 'outlets',
           name: 'dashboard-outlets',
           component: () => import('@/views/dashboard/outlets/OutletsPage.vue'),
+          meta: { requiresAuth: true, roles: ['owner', 'superadmin'] },
         },
       ],
     },
@@ -291,9 +365,99 @@ const router = createRouter({
     // 404 Catch-All
     {
       path: '/:pathMatch(.*)*',
-      redirect: '/dashboard',
+      redirect: '/auth/login',
     },
   ],
+})
+
+// ================= NAVIGATION GUARDS =================
+router.beforeEach((to, _from) => {
+  // 0. Cek masa berlaku sesi login harian (Kedaluwarsa otomatis jam 23.59)
+  if (isSessionExpired()) {
+    const hadToken = !!localStorage.getItem('lapaqu_token')
+    clearSessionStorage()
+    if (hadToken && !to.path.startsWith('/auth') && !to.path.startsWith('/order')) {
+      return {
+        path: '/auth/login',
+      }
+    }
+  }
+
+  const token = sessionStorage.getItem('lapaqu_token') || localStorage.getItem('lapaqu_token')
+  const userStr = sessionStorage.getItem('lapaqu_user') || localStorage.getItem('lapaqu_user')
+  const isAuthenticated = !isSessionExpired() && !!token && !!userStr
+
+  // 1. Proteksi Halaman Outlet Staff: Hanya perangkat yang sudah di-pair yang boleh mengakses!
+  if (to.name === 'outlet-staff' || to.path === '/auth/outlet-staff' || to.path === '/outlet/staff') {
+    const paired = getPairedOutlet()
+    const deviceToken = localStorage.getItem('lapaqu_device_token')
+    if (!paired || !deviceToken) {
+      // Perangkat belum pairing -> tolak dan alihkan ke halaman pairing
+      return {
+        path: '/auth/outlet-login',
+        query: { alert: 'unpaired' },
+      }
+    }
+  }
+
+  // 2. Auto-redirect perangkat terhubung (Paired Device) ke Halaman Pilih Staff
+  const paired = getPairedOutlet()
+  if (paired && !isAuthenticated) {
+    // Jika perangkat sudah di-pair dan mencoba buka login umum atau pairing (bukan mode owner), langsung ke outlet-staff
+    if (
+      (to.name === 'login' || to.path === '/auth/login' || to.path === '/login' || to.name === 'outlet-login' || to.path === '/auth/outlet-login') &&
+      to.query.mode !== 'owner' &&
+      to.query.relink !== '1'
+    ) {
+      return '/auth/outlet-staff'
+    }
+  }
+  let userRole: string | undefined
+
+  if (userStr) {
+    try {
+      const user = JSON.parse(userStr)
+      userRole = user?.role
+    } catch (e) {}
+  }
+
+  const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
+  const guestOnly = to.matched.some(record => record.meta.guestOnly)
+
+  // 1. Belum login mencoba akses halaman terproteksi
+  if (requiresAuth && !isAuthenticated) {
+
+    return {
+      path: '/auth/login',
+      query: { redirect: to.fullPath },
+    }
+  }
+
+  // 2. Sudah login membuka rute tamu (login, forgot-pass, dll)
+  if (guestOnly && isAuthenticated) {
+    if (to.name === 'outlet-login' || to.name === 'outlet-staff') {
+      return
+    }
+    if (userRole === 'kasir') return '/pos/orders'
+    if (userRole === 'kitchen_staff') return '/kds/queue'
+    return '/dashboard'
+  }
+
+  // 3. Otorisasi peran (Role-Based Access Control)
+  if (requiresAuth && isAuthenticated) {
+    const matchedRoleRecord = to.matched.find(record => Array.isArray(record.meta.roles))
+    if (matchedRoleRecord) {
+      const allowedRoles = matchedRoleRecord.meta.roles as string[]
+      if (userRole && !allowedRoles.includes(userRole)) {
+        // Alihkan user ke area kerjanya jika tidak berhak
+        if (userRole === 'kasir') return '/pos/orders'
+        if (userRole === 'kitchen_staff') return '/kds/queue'
+        return '/dashboard'
+      }
+    }
+  }
+
+  return true
 })
 
 export default router

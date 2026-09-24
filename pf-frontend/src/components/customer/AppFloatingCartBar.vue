@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import { useCartStore } from '@/stores/cart'
 import { useFormat } from '@/composables/useFormat'
+import { useCustomerI18n } from '@/i18n'
 
 interface Props {
   tableCode?: string
@@ -33,6 +34,7 @@ const emit = defineEmits<{
 const router = useRouter()
 const cartStore = useCartStore()
 const { formatNumber } = useFormat()
+const { t } = useCustomerI18n()
 
 const totalItems = computed(() => {
   if (cartStore.hasPendingOrder) {
@@ -120,9 +122,9 @@ const handleCartClick = () => {
             <template v-if="cartStore.hasPendingOrder">
               <!-- Line 1: Lanjutkan Pembayaran (Dominan) -->
               <span class="font-bold text-sm sm:text-base leading-tight tracking-tight text-white truncate">
-                Lanjutkan Pembayaran
+                {{ t('cart.checkout') }}
               </span>
-              <!-- Line 2: 1 item #ORD-2026 -->
+              <!-- Line 2: item count & order number -->
               <span class="text-xs text-white/85 font-medium leading-tight truncate mt-0.5">
                 {{ totalItems }} {{ totalItems > 1 ? 'items' : 'item' }} #{{ cartStore.pendingOrder?.order_number || '' }}
               </span>
@@ -152,7 +154,7 @@ const handleCartClick = () => {
           type="button"
           @click="handleCartClick"
           class="h-[56px] w-[56px] rounded-2xl bg-white dark:bg-[#273142] border-2 border-[#4880FF] flex items-center justify-center shadow-xs hover:bg-blue-50/50 dark:hover:bg-[#323D4E] active:scale-95 transition-all cursor-pointer shrink-0"
-          title="Lihat Pesanan Saya"
+          :title="t('cart.viewCart')"
         >
           <AppIcon name="shopping_bag" :size="24" :filled="true" class="text-[#4880FF]" />
         </button>

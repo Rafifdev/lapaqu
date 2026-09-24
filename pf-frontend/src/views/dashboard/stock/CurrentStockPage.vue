@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useNotyf } from '@/composables/useNotyf'
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { PlusCircle, MoreVertical, History, AlertTriangle } from 'lucide-vue-next'
@@ -25,15 +26,14 @@ const selectedCategoryId = ref('all')
 const statusFilter = ref<'all' | 'safe' | 'low' | 'empty'>('all')
 
 // Notification
-const notification = ref<{ type: 'success' | 'error'; message: string } | null>(null)
-let notificationTimer: ReturnType<typeof setTimeout> | null = null
+const notyf = useNotyf()
 
 const showNotification = (type: 'success' | 'error', message: string) => {
-  if (notificationTimer) clearTimeout(notificationTimer)
-  notification.value = { type, message }
-  notificationTimer = setTimeout(() => {
-    notification.value = null
-  }, 4000)
+  if (type === 'success') {
+    notyf.success(message)
+  } else {
+    notyf.error(message)
+  }
 }
 
 // Dropdown Titik Tiga (Aksi Bahan)
@@ -66,6 +66,8 @@ const loadData = async () => {
     isLoading.value = false
   }
 }
+
+
 
 onMounted(() => {
   window.addEventListener('click', closeMenu)
@@ -176,28 +178,6 @@ const handleSaveAdjust = async () => {
 
 <template>
   <div class="space-y-6">
-    <!-- Notification Banner (Toast) -->
-    <transition enter-active-class="transition duration-300 ease-out transform"
-      enter-from-class="-translate-y-2 opacity-0" enter-to-class="translate-y-0 opacity-100"
-      leave-active-class="transition duration-200 ease-in transform" leave-from-class="translate-y-0 opacity-100"
-      leave-to-class="-translate-y-2 opacity-0">
-      <div v-if="notification" :class="[
-        'flex items-center justify-between gap-3 px-4 py-3 rounded-xl border text-sm font-semibold shadow-sm',
-        notification.type === 'success'
-          ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
-          : 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300'
-      ]">
-        <div class="flex items-center gap-2">
-          <AppIcon :name="notification.type === 'success' ? 'check_circle' : 'error'" :size="20" />
-          <span>{{ notification.message }}</span>
-        </div>
-        <button type="button" @click="notification = null"
-          class="text-current opacity-70 hover:opacity-100 transition-opacity cursor-pointer">
-          <AppIcon name="close" :size="18" />
-        </button>
-      </div>
-    </transition>
-
     <!-- Header Page (Tanpa Sub Header Kecil) -->
     <div class="flex items-center justify-between">
       <h1 class="text-2xl font-bold text-[#202224] dark:text-white">Stok Bahan Saat Ini</h1>
@@ -384,7 +364,7 @@ const handleSaveAdjust = async () => {
         <div class="p-3.5 bg-[#F8FAFC] dark:bg-[#1E293B] rounded-xl border border-[#E2E8F0] dark:border-[#334155] flex items-center justify-between text-xs">
           <span class="text-[#64748B] dark:text-[#94A3B8] font-medium">Stok Terkini:</span>
           <span class="font-bold text-[#202224] dark:text-white text-sm font-mono">
-            {{ formatNumber(targetIngredient?.displayStock ?? targetIngredient?.currentStock) }} {{ targetIngredient?.unit }}
+            {{ formatNumber(targetIngredient?.displayStock ?? targetIngredient?.currentStock ?? 0) }} {{ targetIngredient?.unit }}
           </span>
         </div>
 

@@ -14,21 +14,29 @@ import { useAuthStore } from '@/stores/auth'
 
 import { useCartStore } from '@/stores/cart'
 import { usePosStore } from '@/stores/pos'
+import { useNotyf } from '@/composables/useNotyf'
 import { useFormat } from '@/composables/useFormat'
 import type { MenuItem } from '@/types'
 
 const cartStore = useCartStore()
 const authStore = useAuthStore()
 const posStore = usePosStore()
+const notyf = useNotyf()
 const route = useRoute()
 const { formatCurrency } = useFormat()
+const isLoading = ref(true)
 
 onMounted(async () => {
-  await Promise.all([
-    posStore.fetchCategories(),
-    posStore.fetchMenuItems(),
-    posStore.fetchTables(),
-  ])
+  isLoading.value = true
+  try {
+    await Promise.all([
+      posStore.fetchCategories(),
+      posStore.fetchMenuItems(),
+      posStore.fetchTables(),
+    ])
+  } finally {
+    isLoading.value = false
+  }
 
   if (route.query.table) {
     selectedTable.value = getTableDisplayNumber(String(route.query.table))
@@ -39,13 +47,16 @@ onMounted(async () => {
   }
 })
 
-// Outlet info for receipt printing
-const outletInfo = {
-  name: 'Lapaqu POS',
-  address: 'Kopi Senopati Group',
-  phone: '0812-9876-5432',
-  taxId: '',
-}
+// Dynamic outlet info from auth session for receipt printing
+const outletInfo = computed(() => {
+  const currentOutletName = localStorage.getItem('lapaqu_outlet_name') || (authStore.currentUser as any)?.tenant?.name || 'Lapaqu Resto'
+  return {
+    name: currentOutletName,
+    address: (authStore.currentUser as any)?.outlet?.address || '',
+    phone: (authStore.currentUser as any)?.outlet?.phone || '',
+    taxId: '',
+  }
+})
 
 // State
 const searchQuery = ref('')
@@ -263,6 +274,7 @@ const handleConfirmPayment = async () => {
     customerName.value = ''
     selectedTable.value = '-'
     isSuccessModalOpen.value = true
+    notyf.success('Transaksi kasir berhasil!')
   } catch (err: any) {
     alert(err?.response?.data?.message || err?.message || 'Gagal memproses pesanan ke server backend.')
   }
@@ -342,10 +354,10 @@ const handlePrintReceipt = () => {
 <body>
   <!-- HEADER -->
   <div class="header">
-    <div class="outlet-name">${outletInfo.name}</div>
-    <div class="sub">${outletInfo.address}</div>
-    <div class="sub">Telp: ${outletInfo.phone}</div>
-    ${outletInfo.taxId ? `<div class="sub">NPWP: ${outletInfo.taxId}</div>` : ''}
+    <div class="outlet-name">${outletInfo.value.name}</div>
+    ${outletInfo.value.address ? `<div class="sub">${outletInfo.value.address}</div>` : ''}
+    ${outletInfo.value.phone ? `<div class="sub">Telp: ${outletInfo.value.phone}</div>` : ''}
+    ${outletInfo.value.taxId ? `<div class="sub">NPWP: ${outletInfo.value.taxId}</div>` : ''}
   </div>
 
   <div class="divider-dashed"></div>
@@ -504,7 +516,7 @@ const handleImageError = (e: Event) => {
 
 
           <!-- Category Filter Pills Row (Stroke Only with Skeleton) -->
-          <div v-if="posStore.isLoading" class="flex items-center gap-3 overflow-x-auto no-scrollbar p-1 animate-pulse">
+          <div v-if="isLoading" class="flex items-center gap-3 overflow-x-auto no-scrollbar p-1 animate-pulse">
             <div v-for="n in 6" :key="n" class="h-10 w-24 bg-slate-200 dark:bg-slate-700/60 rounded-xl shrink-0" />
           </div>
           <div v-else class="flex items-center gap-3 overflow-x-auto no-scrollbar p-1">
@@ -534,7 +546,7 @@ const handleImageError = (e: Event) => {
         <!-- Food Menu Cards Grid (Scrollable with padding to prevent edge clipping on zoom) -->
         <div class="flex-1 overflow-y-auto p-2 sm:p-3 -m-2 sm:-m-3 min-h-0 [scrollbar-gutter:stable]">
           <!-- Skeleton Loading Grid -->
-          <div v-if="posStore.isLoading" :class="[
+          <div v-if="isLoading" :class="[
             'grid gap-4 p-1',
             isOrderPanelExpanded
               ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4'
@@ -554,19 +566,21 @@ const handleImageError = (e: Event) => {
               @increment="handleIncrement" @decrement="handleDecrement" />
           </div>
 
-          <!-- Empty State if search/category has no items (Layout disesuaikan untuk desktop & tablet) -->
+          <!-- Empty State if search/category has no items or outlet has no items -->
           <div v-else
             class="min-h-[300px] sm:min-h-[340px] md:min-h-[380px] flex flex-col items-center justify-center text-center px-4 py-6">
             <div class="relative flex items-center justify-center -mb-2 sm:-mb-3 md:-mb-4 pointer-events-none">
               <img :src="emptyMenuIllustration" alt="Menu Tidak Ditemukan"
                 class="w-48 h-48 sm:w-56 sm:h-56 md:w-60 md:h-60 lg:w-64 lg:h-64 object-contain drop-shadow-xs" />
             </div>
-            <h3 class="text-xl sm:text-2xl md:text-[26px] font-black text-[#1E293B] dark:text-white tracking-tight">
-              Whoops! :(
+            <h3 class="text-lg sm:text-xl md:text-2xl font-bold text-[#1E293B] dark:text-white tracking-tight">
+              {{ posStore.menuItems.length === 0 ? 'Belum Ada Menu' : 'Whoops! :(' }}
             </h3>
             <p
-              class="text-xs sm:text-base font-medium text-[#64748B] dark:text-[#94A3B8] mt-1.5 max-w-[280px] sm:max-w-xs md:max-w-sm leading-relaxed">
-              Menu yang anda cari tidak ditemukan. Silahkan pilih kategori lain
+              class="text-xs sm:text-sm font-medium text-[#64748B] dark:text-[#94A3B8] mt-1.5 max-w-[280px] sm:max-w-xs md:max-w-sm leading-relaxed">
+              {{ posStore.menuItems.length === 0
+                ? 'Outlet ini belum memiliki menu makanan. Silakan tambahkan menu melalui halaman Manajemen Menu di Dashboard.'
+                : 'Menu yang anda cari tidak ditemukan. Silahkan pilih kategori lain' }}
             </p>
           </div>
         </div>
@@ -929,14 +943,14 @@ const handleImageError = (e: Event) => {
 
                     <!-- Center Big Table -->
                     <div :class="[
-                      'w-full h-14 sm:h-16 rounded-2xl flex items-center justify-center font-black text-sm sm:text-base tracking-tight transition-all duration-200 shadow-2xs tabular-nums',
+                      'w-full h-14 sm:h-16 rounded-2xl flex items-center justify-center font-bold text-sm sm:text-base tracking-tight transition-all duration-200 shadow-2xs tabular-nums',
                       t.status === 'filled'
                         ? 'bg-[#0F172A] text-white shadow-xs'
                         : t.status === 'reserved'
                         ? 'bg-[#4880FF] text-white shadow-sm shadow-[#4880FF]/25'
                         : t.isSelected
                         ? 'bg-[#1D4ED8] text-white shadow-md'
-                        : 'bg-[#E2E8F0] dark:bg-[#334155] text-[#1E293B] dark:text-white group-hover:bg-[#CBD5E1] dark:group-hover:bg-[#475569] border border-[#CBD5E1]/40 dark:border-transparent'
+                        : 'bg-[#E2E8F0] dark:bg-[#334155] text-[#1E293B] dark:text-white group-hover:bg-[#4880FF] group-hover:text-white group-hover:border-[#4880FF] group-hover:shadow-sm group-hover:shadow-[#4880FF]/25 border border-[#CBD5E1]/40 dark:border-transparent'
                     ]">
                       {{ t.code }}
                     </div>
@@ -1007,14 +1021,14 @@ const handleImageError = (e: Event) => {
 
                     <!-- Center Normal Table -->
                     <div :class="[
-                      'w-full h-14 sm:h-16 rounded-2xl flex items-center justify-center font-black text-sm sm:text-base tracking-tight transition-all duration-200 shadow-2xs tabular-nums',
+                      'w-full h-14 sm:h-16 rounded-2xl flex items-center justify-center font-bold text-sm sm:text-base tracking-tight transition-all duration-200 shadow-2xs tabular-nums',
                       t.status === 'filled'
                         ? 'bg-[#0F172A] text-white shadow-xs'
                         : t.status === 'reserved'
                         ? 'bg-[#4880FF] text-white shadow-sm shadow-[#4880FF]/25'
                         : t.isSelected
                         ? 'bg-[#1D4ED8] text-white shadow-md'
-                        : 'bg-[#E2E8F0] dark:bg-[#334155] text-[#1E293B] dark:text-white group-hover:bg-[#CBD5E1] dark:group-hover:bg-[#475569] border border-[#CBD5E1]/40 dark:border-transparent'
+                        : 'bg-[#E2E8F0] dark:bg-[#334155] text-[#1E293B] dark:text-white group-hover:bg-[#4880FF] group-hover:text-white group-hover:border-[#4880FF] group-hover:shadow-sm group-hover:shadow-[#4880FF]/25 border border-[#CBD5E1]/40 dark:border-transparent'
                     ]">
                       {{ t.code }}
                     </div>
@@ -1103,14 +1117,14 @@ const handleImageError = (e: Event) => {
 
                     <!-- Center Big Table -->
                     <div :class="[
-                      'w-full h-14 sm:h-16 rounded-2xl flex items-center justify-center font-black text-sm sm:text-base tracking-tight transition-all duration-200 shadow-2xs tabular-nums',
+                      'w-full h-14 sm:h-16 rounded-2xl flex items-center justify-center font-bold text-sm sm:text-base tracking-tight transition-all duration-200 shadow-2xs tabular-nums',
                       t.status === 'filled'
                         ? 'bg-[#0F172A] text-white shadow-xs'
                         : t.status === 'reserved'
                         ? 'bg-[#4880FF] text-white shadow-sm shadow-[#4880FF]/25'
                         : t.isSelected
                         ? 'bg-[#1D4ED8] text-white shadow-md'
-                        : 'bg-[#E2E8F0] dark:bg-[#334155] text-[#1E293B] dark:text-white group-hover:bg-[#CBD5E1] dark:group-hover:bg-[#475569] border border-[#CBD5E1]/40 dark:border-transparent'
+                        : 'bg-[#E2E8F0] dark:bg-[#334155] text-[#1E293B] dark:text-white group-hover:bg-[#4880FF] group-hover:text-white group-hover:border-[#4880FF] group-hover:shadow-sm group-hover:shadow-[#4880FF]/25 border border-[#CBD5E1]/40 dark:border-transparent'
                     ]">
                       {{ t.code }}
                     </div>
@@ -1181,14 +1195,14 @@ const handleImageError = (e: Event) => {
 
                     <!-- Center Normal Table -->
                     <div :class="[
-                      'w-full h-14 sm:h-16 rounded-2xl flex items-center justify-center font-black text-sm sm:text-base tracking-tight transition-all duration-200 shadow-2xs tabular-nums',
+                      'w-full h-14 sm:h-16 rounded-2xl flex items-center justify-center font-bold text-sm sm:text-base tracking-tight transition-all duration-200 shadow-2xs tabular-nums',
                       t.status === 'filled'
                         ? 'bg-[#0F172A] text-white shadow-xs'
                         : t.status === 'reserved'
                         ? 'bg-[#4880FF] text-white shadow-sm shadow-[#4880FF]/25'
                         : t.isSelected
                         ? 'bg-[#1D4ED8] text-white shadow-md'
-                        : 'bg-[#E2E8F0] dark:bg-[#334155] text-[#1E293B] dark:text-white group-hover:bg-[#CBD5E1] dark:group-hover:bg-[#475569] border border-[#CBD5E1]/40 dark:border-transparent'
+                        : 'bg-[#E2E8F0] dark:bg-[#334155] text-[#1E293B] dark:text-white group-hover:bg-[#4880FF] group-hover:text-white group-hover:border-[#4880FF] group-hover:shadow-sm group-hover:shadow-[#4880FF]/25 border border-[#CBD5E1]/40 dark:border-transparent'
                     ]">
                       {{ t.code }}
                     </div>

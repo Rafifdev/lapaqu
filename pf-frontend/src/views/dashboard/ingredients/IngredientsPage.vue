@@ -678,7 +678,7 @@ const handleDelete = async () => {
         <p class="text-[#475569] dark:text-[#CBD5E1] leading-relaxed">
           Apakah Anda yakin ingin menghapus bahan baku <strong class="text-[#1E293B] dark:text-white">{{ ingredientToDelete?.name }}</strong>? Tindakan ini tidak dapat dibatalkan.
         </p>
-        <p class="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 p-3 rounded-xl border border-amber-200 dark:border-amber-900 leading-relaxed font-medium">
+        <p class="text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 p-3 rounded-xl border border-amber-200 dark:border-amber-900 leading-relaxed font-medium">
           Catatan: Bahan baku tidak dapat dihapus jika sedang digunakan di resep menu aktif.
         </p>
       </div>

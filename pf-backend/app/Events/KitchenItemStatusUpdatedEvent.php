@@ -3,6 +3,7 @@
 namespace App\Events;
 
 use App\Models\OrderItem;
+use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
@@ -19,9 +20,16 @@ class KitchenItemStatusUpdatedEvent implements ShouldBroadcastNow
 
     public function broadcastOn(): array
     {
-        return [
+        $channels = [
             new PrivateChannel('outlet.' . $this->orderItem->order->outlet_id),
+            new Channel('order.' . $this->orderItem->order_id),
         ];
+
+        if ($this->orderItem->order && $this->orderItem->order->table_id) {
+            $channels[] = new Channel('table.' . $this->orderItem->order->table_id);
+        }
+
+        return $channels;
     }
 
     public function broadcastAs(): string

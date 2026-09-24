@@ -244,6 +244,12 @@ class ReportController extends Controller
                 $query->whereBetween('created_at', [$start, $end]);
                 $periodLabel = '7 Hari Terakhir';
                 break;
+            case 'year':
+                $start = $now->copy()->startOfYear();
+                $end = $now->copy()->endOfDay();
+                $query->whereBetween('created_at', [$start, $end]);
+                $periodLabel = 'Tahun Ini (' . $now->translatedFormat('Y') . ')';
+                break;
             case 'weekend':
                 $start = $now->copy()->startOfMonth();
                 $end = $now->copy()->endOfDay();

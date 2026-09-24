@@ -45,8 +45,8 @@ export const useCartStore = defineStore('cart', () => {
 
   const items = ref<CartItem[]>(saved?.items || [])
   const tableCode = ref<string>(saved?.tableCode || '-')
-  const outletId = ref<string>(saved?.outletId || 'outlet-001')
-  const activeSessionId = ref<string>(saved?.activeSessionId || 'sess-001')
+  const outletId = ref<string>(saved?.outletId || '')
+  const activeSessionId = ref<string>(saved?.activeSessionId || '')
   const customerName = ref<string>(saved?.customerName || '')
   const customerPhone = ref<string>(saved?.customerPhone || '')
   const orderType = ref<'dine_in' | 'takeaway'>(saved?.orderType || 'dine_in')
@@ -140,7 +140,6 @@ export const useCartStore = defineStore('cart', () => {
     pendingOrder.value = orderData
     try {
       localStorage.setItem(PENDING_STORAGE_KEY, JSON.stringify(orderData))
-      localStorage.setItem('lapaqu_active_order_id', orderData.id)
     } catch (e) {}
   }
 

@@ -32,13 +32,16 @@ class XenditOrderPaymentService
         $expirationDate = now()->addDay()->toIso8601ZuluString();
 
         $headers = [];
+        $useXenPlatform = config('services.xendit.use_xenplatform', false);
         $isRealSubAccount = !empty($subAccountId) 
             && !str_starts_with($subAccountId, 'xnd_sub_mock') 
             && !str_starts_with($subAccountId, 'xnd_sub_demo') 
+            && !str_starts_with($subAccountId, 'merch_')
             && !str_contains($subAccountId, 'demo') 
             && !str_contains($subAccountId, 'mock');
 
-        if ($isRealSubAccount) {
+        // Only attach for-user-id if xenPlatform is explicitly enabled and approved
+        if ($useXenPlatform && $isRealSubAccount) {
             $headers['for-user-id'] = $subAccountId;
         }
 

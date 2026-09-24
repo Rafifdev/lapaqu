@@ -11,6 +11,21 @@ export const usePosStore = defineStore('pos', () => {
 
   // Dynamic state loaded strictly from API
   const orders = ref<Order[]>([])
+  const pendingKdsItemUpdates = new Map<string, { status: string; timestamp: number }>()
+
+  const setPendingKdsItem = (itemId: string, status: string) => {
+    pendingKdsItemUpdates.set(itemId, { status, timestamp: Date.now() })
+  }
+
+  const getPendingKdsItemStatus = (itemId: string): string | null => {
+    const entry = pendingKdsItemUpdates.get(itemId)
+    if (!entry) return null
+    if (Date.now() - entry.timestamp > 5000) {
+      pendingKdsItemUpdates.delete(itemId)
+      return null
+    }
+    return entry.status
+  }
   const menuItems = ref<MenuItem[]>([])
   const ingredients = ref<Ingredient[]>([])
   const ingredientCategories = ref<IngredientCategory[]>([])
@@ -47,14 +62,17 @@ export const usePosStore = defineStore('pos', () => {
   }
 
   // Actions: Categories (Real Backend API)
-  const fetchCategories = async () => {
+  const fetchCategories = async (targetOutletId?: string) => {
     try {
-      const res = await apiClient.get('/menu-categories')
+      const activeOutletId = targetOutletId || localStorage.getItem('lapaqu_outlet_id') || undefined
+      const params: any = {}
+      if (activeOutletId) params.outlet_id = activeOutletId
+      const res = await apiClient.get('/menu-categories', { params })
       const data = res.data
       if (data.categories && Array.isArray(data.categories)) {
         categories.value = data.categories.map((c: any) => ({
           id: c.id,
-          outletId: c.outlet_id || 'outlet-001',
+          outletId: c.outlet_id || activeOutletId || '',
           name: c.name,
           sortOrder: c.sort_order || 0,
           itemCount: Number(c.menu_items_count ?? c.items_count ?? (c.items ? c.items.length : 0)),
@@ -84,9 +102,12 @@ export const usePosStore = defineStore('pos', () => {
   }
 
   // Actions: Menu Items (Real Backend API)
-  const fetchMenuItems = async () => {
+  const fetchMenuItems = async (targetOutletId?: string) => {
     try {
-      const res = await apiClient.get('/menu-items')
+      const activeOutletId = targetOutletId || localStorage.getItem('lapaqu_outlet_id') || undefined
+      const params: any = {}
+      if (activeOutletId) params.outlet_id = activeOutletId
+      const res = await apiClient.get('/menu-items', { params })
       const data = res.data
       if (data.items && Array.isArray(data.items)) {
         menuItems.value = data.items.map((m: any) => ({
@@ -97,7 +118,7 @@ export const usePosStore = defineStore('pos', () => {
             name: m.category.name,
             slug: m.category.slug,
           } : undefined,
-          outletId: m.outlet_id || 'outlet-001',
+          outletId: m.outlet_id || activeOutletId || '',
           name: m.name,
           description: m.description,
           price: Number(m.price ?? m.base_price ?? 0),
@@ -363,12 +384,15 @@ export const usePosStore = defineStore('pos', () => {
   }
 
   // Actions: Tables
-  const fetchTables = async () => {
+  const fetchTables = async (targetOutletId?: string) => {
     try {
       if (!localStorage.getItem('lapaqu_token')) {
         await authStore.ensureToken()
       }
-      const res = await apiClient.get('/tables')
+      const activeOutletId = targetOutletId || localStorage.getItem('lapaqu_outlet_id') || undefined
+      const params: any = {}
+      if (activeOutletId) params.outlet_id = activeOutletId
+      const res = await apiClient.get('/tables', { params })
       const data = res.data
       if (data.tables && Array.isArray(data.tables) && data.tables.length > 0) {
         tables.value = data.tables.map((t: any) => ({
@@ -384,14 +408,12 @@ export const usePosStore = defineStore('pos', () => {
           outletId: t.outlet_id,
           qrToken: t.qr_code_token || t.qrToken,
         }))
-      } else if (tables.value.length === 0) {
+      } else {
         tables.value = []
       }
     } catch (err: any) {
-      console.warn('Backend tables unavailable, using mock:', err?.message)
-      if (tables.value.length === 0) {
-        tables.value = []
-      }
+      console.error('Failed to load tables from backend:', err?.message)
+      tables.value = []
     }
   }
 
@@ -430,15 +452,15 @@ export const usePosStore = defineStore('pos', () => {
             optionName: opt.option_name_snapshot || opt.name || '',
             priceModifier: Number(opt.price_modifier_snapshot || opt.price_modifier || 0),
           })),
-          status: it.status || 'pending',
+          status: getPendingKdsItemStatus(it.id) || it.status || 'pending',
         }
       }),
       subtotal: Number(o.subtotal || 0),
       taxAmount: Number(o.tax_amount || 0),
       discountAmount: Number(o.discount_amount || 0),
       totalAmount: Number(o.total_amount || 0),
-      cashReceived: o.cash_received ? Number(o.cash_received) : undefined,
-      changeGiven: o.change_given ? Number(o.change_given) : undefined,
+      ...(o.cash_received ? { cashReceived: Number(o.cash_received) } : {}),
+      ...(o.change_given ? { changeGiven: Number(o.change_given) } : {}),
       createdAt: o.created_at || new Date().toISOString(),
       updatedAt: o.updated_at || new Date().toISOString(),
     }
@@ -473,7 +495,12 @@ export const usePosStore = defineStore('pos', () => {
               const ci = current.items[idx]
               const fi = fresh.items[idx]
               if (ci && fi && ci.id === fi.id) {
-                if (ci.status !== fi.status) ci.status = fi.status
+                const pendingStatus = getPendingKdsItemStatus(ci.id)
+                if (pendingStatus !== null) {
+                  ci.status = pendingStatus as any
+                } else if (ci.status !== fi.status) {
+                  ci.status = fi.status
+                }
                 if (ci.quantity !== fi.quantity) ci.quantity = fi.quantity
               } else {
                 current.items = fresh.items
@@ -523,7 +550,7 @@ export const usePosStore = defineStore('pos', () => {
         }
       }
     } catch (err: any) {
-      console.warn('Backend orders unavailable, using mock:', err?.message)
+      console.error('Failed to load orders from backend:', err?.message)
     } finally {
       isLoading.value = false
     }
@@ -551,7 +578,7 @@ export const usePosStore = defineStore('pos', () => {
       const activeOutletId =
         orderPayload.outlet_id ||
         orderPayload.outletId ||
-        authStore.user?.outlet_id ||
+        authStore.currentUser?.outletId ||
         (menuItems.value.length > 0 ? menuItems.value[0].outletId : undefined) ||
         '01a04c28-547a-710a-a0a1-73440c26b8fe'
 
@@ -832,7 +859,9 @@ export const usePosStore = defineStore('pos', () => {
           if (target) {
             const it = target.items.find(i => i.id === item.id)
             if (it) {
-              it.status = item.status === 'ready' || item.status === 'served' ? item.status : 'pending'
+              const resolved = item.status === 'ready' || item.status === 'served' ? item.status : 'cooking'
+              it.status = resolved
+              setPendingKdsItem(item.id, resolved)
               window.dispatchEvent(new CustomEvent('kds:refresh', { detail: { orderId: item.order_id, itemId: item.id, itemStatus: it.status } }))
               return
             }
@@ -844,6 +873,7 @@ export const usePosStore = defineStore('pos', () => {
 
   return {
     initRealtime,
+    setPendingKdsItem,
     
     orders,
     menuItems,

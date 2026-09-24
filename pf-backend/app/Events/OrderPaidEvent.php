@@ -3,6 +3,7 @@
 namespace App\Events;
 
 use App\Models\Order;
+use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
@@ -19,9 +20,16 @@ class OrderPaidEvent implements ShouldBroadcastNow
 
     public function broadcastOn(): array
     {
-        return [
+        $channels = [
             new PrivateChannel('outlet.' . $this->order->outlet_id),
+            new Channel('order.' . $this->order->id),
         ];
+
+        if ($this->order->table_id) {
+            $channels[] = new Channel('table.' . $this->order->table_id);
+        }
+
+        return $channels;
     }
 
     public function broadcastAs(): string
@@ -36,6 +44,7 @@ class OrderPaidEvent implements ShouldBroadcastNow
             'order_number' => $this->order->order_number,
             'payment_status' => $this->order->payment_status,
             'status' => $this->order->status,
+            'table_id' => $this->order->table_id,
         ];
     }
 }

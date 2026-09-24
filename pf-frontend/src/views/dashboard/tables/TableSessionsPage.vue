@@ -39,8 +39,8 @@ const activeSessions = computed(() => {
         tableCode: t.code || t.tableCode,
         rawCode: t.tableCode,
         startedAt: t.sessionStartedAt ? `${formatTimeOnly(t.sessionStartedAt)} WIB` : 'Baru saja',
-        ordersCount: orders.length || 1,
-        totalAmount: formatCurrency(total || 80000),
+        ordersCount: orders.length,
+        totalAmount: formatCurrency(total),
       }
     })
 })
@@ -86,7 +86,7 @@ const closeSession = (rawCode: string) => {
       </template>
 
       <template #cell-tableCode="{ value }">
-        <span class="font-black text-[#4880FF] text-sm">{{ value }}</span>
+        <span class="font-bold text-[#4880FF] text-sm">{{ value }}</span>
       </template>
 
       <template #cell-ordersCount="{ value }">

@@ -21,8 +21,8 @@ onMounted(async () => {
   }
 })
 
-const outletId = computed(() => (route.params.outletId as string) || 'outlet-001')
-const tableCode = computed(() => (route.params.tableCode as string) || cartStore.tableCode || 'M03')
+const outletId = computed(() => (route.params.outletId as string) || cartStore.outletId || '')
+const tableCode = computed(() => (route.params.tableCode as string) || cartStore.tableCode || '')
 const menuUrl = computed(() => `/order/${outletId.value}/${tableCode.value}`)
 </script>
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { ChevronDown, Check } from 'lucide-vue-next'
 
 export interface FilterOption {
@@ -31,8 +31,14 @@ const emit = defineEmits<{
 const isOpen = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
 
+// Local value untuk reaksi seketika 0ms saat opsi diklik (tanpa tunggu async parent)
+const localValue = ref<string | number>(props.modelValue)
+watch(() => props.modelValue, (v) => {
+  localValue.value = v
+})
+
 const selectedLabel = computed(() => {
-  const found = props.options.find((o) => o.value === props.modelValue)
+  const found = props.options.find((o) => o.value === localValue.value)
   return found ? found.label : props.placeholder
 })
 
@@ -45,13 +51,14 @@ const close = () => {
 }
 
 const selectOption = (val: string | number) => {
+  localValue.value = val // Langsung set aktif seketika!
+  close()
   emit('update:modelValue', val)
   emit('change', val)
-  close()
 }
 
 const handleClickOutside = (e: MouseEvent) => {
-  if (dropdownRef.value && !dropdownRef.value.contains(e.target as Node)) {
+  if (isOpen.value && dropdownRef.value && !dropdownRef.value.contains(e.target as Node)) {
     close()
   }
 }
@@ -68,7 +75,7 @@ defineExpose({ open: () => (isOpen.value = true), close, toggle })
 </script>
 
 <template>
-  <div ref="dropdownRef" class="relative inline-flex" @click.stop>
+  <div ref="dropdownRef" class="relative inline-flex">
     <!-- Trigger Button: Tanpa stroke/border, hanya background putih + shadow-xs -->
     <button
       type="button"
@@ -114,13 +121,13 @@ defineExpose({ open: () => (isOpen.value = true), close, toggle })
           @click="selectOption(opt.value)"
           class="w-full px-3 py-2 rounded-lg text-left flex items-center justify-between transition-colors cursor-pointer whitespace-nowrap"
           :class="
-            modelValue === opt.value
+            localValue === opt.value
               ? 'bg-[#4880FF]/10 text-[#4880FF] font-bold'
               : 'text-[#202224] dark:text-[#E2E8F0] hover:bg-[#F1F5F9] dark:hover:bg-[#334155]'
           "
         >
           <span>{{ opt.label }}</span>
-          <Check v-if="modelValue === opt.value" class="w-4 h-4 text-[#4880FF] shrink-0 ml-2" />
+          <Check v-if="localValue === opt.value" class="w-4 h-4 text-[#4880FF] shrink-0 ml-2" />
         </button>
       </div>
     </Transition>

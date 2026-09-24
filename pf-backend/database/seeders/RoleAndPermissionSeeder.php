@@ -73,6 +73,25 @@ class RoleAndPermissionSeeder extends Seeder
         $ownerWeb->syncPermissions(Permission::where('guard_name', 'web')->whereIn('name', $ownerPermissions)->get());
         $ownerSanctum->syncPermissions(Permission::where('guard_name', 'sanctum')->whereIn('name', $ownerPermissions)->get());
 
+        // Store Manager (Penanggung Jawab Cabang)
+        $managerWeb = Role::firstOrCreate(['name' => 'store_manager', 'guard_name' => 'web']);
+        $managerSanctum = Role::firstOrCreate(['name' => 'store_manager', 'guard_name' => 'sanctum']);
+        $managerPermissions = [
+            'manage-tables',
+            'manage-menu',
+            'manage-staff',
+            'view-reports',
+            'request-refund',
+            'create-orders',
+            'view-orders',
+            'process-payments',
+            'void-order-items',
+            'view-kds',
+            'update-kitchen-status',
+        ];
+        $managerWeb->syncPermissions(Permission::where('guard_name', 'web')->whereIn('name', $managerPermissions)->get());
+        $managerSanctum->syncPermissions(Permission::where('guard_name', 'sanctum')->whereIn('name', $managerPermissions)->get());
+
         $kasirWeb = Role::firstOrCreate(['name' => 'kasir', 'guard_name' => 'web']);
         $kasirSanctum = Role::firstOrCreate(['name' => 'kasir', 'guard_name' => 'sanctum']);
         $kasirPermissions = [

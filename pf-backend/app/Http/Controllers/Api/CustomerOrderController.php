@@ -164,7 +164,10 @@ class CustomerOrderController extends Controller
             foreach ($request->items as $itemInput) {
                 $menuItem = MenuItem::withoutGlobalScopes()
                     ->where('id', $itemInput['menu_item_id'])
-                    ->where('outlet_id', $table->outlet_id)
+                    ->where(function ($q) use ($table) {
+                        $q->where('outlet_id', $table->outlet_id)
+                          ->orWhere('tenant_id', $table->tenant_id);
+                    })
                     ->where('is_available', true)
                     ->firstOrFail();
 
@@ -203,6 +206,8 @@ class CustomerOrderController extends Controller
             $serviceFee = $subtotal > 0 ? 2000 : 0;
             $tax = (int) round($subtotal * 0.10);
             $total = $subtotal + $serviceFee + $tax;
+
+            $paymentMethod = $request->input('payment_method', 'qris');
 
             $order = Order::create([
                 'idempotency_key' => $idempotencyKey,
@@ -315,29 +320,56 @@ class CustomerOrderController extends Controller
                   ->orWhere('table_number', 'Meja ' . ltrim(str_ireplace('meja', '', $tableToken), ' 0M'))
                   ->orWhere('table_number', 'Meja 0' . ltrim(str_ireplace('meja', '', $tableToken), ' 0M'));
             })
-            ->when($outletId, fn($q) => $q->where('outlet_id', $outletId))
+            ->when(\Illuminate\Support\Str::isUuid($outletId), fn($q) => $q->where('outlet_id', $outletId))
             ->first();
 
         if (!$table) {
             return response()->json(['order' => null]);
         }
 
-        // Cari pesanan aktif terbaru untuk meja ini
-        $order = Order::withoutGlobalScopes()
+        // Cari semua pesanan aktif untuk meja ini yang sudah diterima dapur (tidak ada pending_payment, cancelled, atau expired)
+        $orders = Order::withoutGlobalScopes()
             ->with(['payments', 'items.options', 'table'])
             ->where('table_id', $table->id)
-            ->where(function ($q) {
-                $q->whereIn('status', ['pending_payment', 'confirmed', 'processing', 'preparing', 'cooking', 'ready'])
-                  ->orWhere('created_at', '>=', now()->subHours(6));
-            })
-            ->latest('created_at')
-            ->first();
+            ->whereIn('status', ['confirmed', 'processing', 'preparing', 'cooking', 'ready', 'completed'])
+            ->where('payment_status', 'paid')
+            ->whereNotIn('status', ['cancelled', 'expired', 'pending_payment'])
+            ->where('created_at', '>=', now()->subHours(6))
+            ->oldest('created_at')
+            ->get();
 
-        if (!$order) {
-            return response()->json(['order' => null]);
+        if ($orders->isEmpty()) {
+            return response()->json(['order' => null, 'orders' => []]);
         }
 
-        return $this->status($order->id);
+        $formattedOrders = $orders->map(function ($ord) {
+            $itemsSubtotal = (int) $ord->items->sum('subtotal');
+            $serviceFee = $itemsSubtotal > 0 ? 2000 : 0;
+            $tax = (int) round($itemsSubtotal * 0.10);
+
+            return [
+                'id' => $ord->id,
+                'order_number' => $ord->order_number,
+                'customer_name' => $ord->customer_name,
+                'status' => $ord->status,
+                'payment_status' => $ord->payment_status,
+                'total_amount' => $ord->final_amount,
+                'subtotal' => $itemsSubtotal,
+                'service_fee' => $serviceFee,
+                'tax_amount' => $tax,
+                'discount_amount' => $ord->discount_amount,
+                'table_id' => $ord->table_id,
+                'table' => $ord->table ? ['id' => $ord->table->id, 'table_number' => $ord->table->table_number] : null,
+                'items' => $ord->items,
+                'payments' => $ord->payments,
+                'created_at' => $ord->created_at,
+            ];
+        });
+
+        return response()->json([
+            'order' => $formattedOrders->last(),
+            'orders' => $formattedOrders,
+        ]);
     }
 
     public function status(string $id): JsonResponse

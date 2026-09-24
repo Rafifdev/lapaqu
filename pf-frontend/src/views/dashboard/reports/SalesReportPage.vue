@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { Download } from 'lucide-vue-next'
 import AppCard from '@/components/ui/AppCard.vue'
 import AppButton from '@/components/ui/AppButton.vue'
@@ -13,28 +13,31 @@ import AppInput from '@/components/ui/AppInput.vue'
 import { usePosStore } from '@/stores/pos'
 import { useFormat } from '@/composables/useFormat'
 import { useTheme } from '@/composables/useTheme'
+import { useDashboardI18n } from '@/i18n'
 import type { ChartData, ChartOptions } from 'chart.js'
 
 const posStore = usePosStore()
 const { formatCurrency, formatNumber } = useFormat()
 const { isDark } = useTheme()
+const { t, translate, locale } = useDashboardI18n()
 
 const isLoading = ref(true)
+const isYearLoading = ref(false)
 
 // Period Filter: Hari ini, Minggu ini, Bulan ini (default), Tahun ini
 const selectedPeriod = ref<'today' | 'week' | 'month' | 'year'>('month')
 
-const periodOptions = [
-  { value: 'today', label: 'Hari ini' },
-  { value: 'week', label: 'Minggu ini' },
-  { value: 'month', label: 'Bulan ini' },
-  { value: 'year', label: 'Tahun ini' },
-]
+const periodOptions = computed(() => [
+  { value: 'today', label: locale.value === 'en' ? 'Today' : 'Hari ini' },
+  { value: 'week', label: locale.value === 'en' ? 'This Week' : 'Minggu ini' },
+  { value: 'month', label: locale.value === 'en' ? 'This Month' : 'Bulan ini' },
+  { value: 'year', label: locale.value === 'en' ? 'This Year' : 'Tahun ini' },
+])
 
 // Formatted Date matching TopItemsPage & Dashboard
 const formattedCurrentDate = computed(() => {
   const now = new Date()
-  return new Intl.DateTimeFormat('id-ID', {
+  return new Intl.DateTimeFormat(locale.value === 'en' ? 'en-US' : 'id-ID', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -57,38 +60,13 @@ const periodTrendLabel = computed(() => {
   }
 })
 
-// Dynamic trend percentages per period
+// Dynamic real stats indicator
 const trendStats = computed(() => {
-  switch (selectedPeriod.value) {
-    case 'today':
-      return {
-        sales: { value: '4.2%', isPositive: true, label: periodTrendLabel.value },
-        orders: { value: '3.5%', isPositive: true, label: periodTrendLabel.value },
-        aov: { value: '1.8%', isPositive: true, label: periodTrendLabel.value },
-        payment: { value: '58%', isPositive: true, label: periodTrendLabel.value },
-      }
-    case 'week':
-      return {
-        sales: { value: '7.4%', isPositive: true, label: periodTrendLabel.value },
-        orders: { value: '5.8%', isPositive: true, label: periodTrendLabel.value },
-        aov: { value: '2.9%', isPositive: true, label: periodTrendLabel.value },
-        payment: { value: '56%', isPositive: true, label: periodTrendLabel.value },
-      }
-    case 'year':
-      return {
-        sales: { value: '28.6%', isPositive: true, label: periodTrendLabel.value },
-        orders: { value: '22.4%', isPositive: true, label: periodTrendLabel.value },
-        aov: { value: '9.5%', isPositive: true, label: periodTrendLabel.value },
-        payment: { value: '64%', isPositive: true, label: periodTrendLabel.value },
-      }
-    case 'month':
-    default:
-      return {
-        sales: { value: '14.8%', isPositive: true, label: periodTrendLabel.value },
-        orders: { value: '8.2%', isPositive: true, label: periodTrendLabel.value },
-        aov: { value: '4.5%', isPositive: true, label: periodTrendLabel.value },
-        payment: { value: '58%', isPositive: true, label: periodTrendLabel.value },
-      }
+  return {
+    sales: { value: totalSales.value > 0 ? `${totalTransactions.value} pesanan` : '0 pesanan', isPositive: totalSales.value > 0, label: periodTrendLabel.value },
+    orders: { value: `${totalTransactions.value} Transaksi`, isPositive: totalTransactions.value > 0, label: periodTrendLabel.value },
+    aov: { value: formatCurrency(aov.value), isPositive: aov.value > 0, label: 'Rata-rata order' },
+    payment: { value: paymentDistribution.value.find(p => Number(p.percent) > 0)?.percent ? `${paymentDistribution.value.find(p => Number(p.percent) > 0)?.percent}%` : '0%', isPositive: true, label: 'Dominan' },
   }
 })
 
@@ -122,9 +100,7 @@ onMounted(async () => {
   } catch (err) {
     console.error('Error fetching orders:', err)
   } finally {
-    setTimeout(() => {
-      isLoading.value = false
-    }, 400)
+    isLoading.value = false
   }
 })
 
@@ -132,40 +108,55 @@ onBeforeUnmount(() => {
   window.removeEventListener('kds:refresh', handleRefresh)
 })
 
+watch(selectedPeriod, async (newVal) => {
+  if (newVal === 'year') {
+    isYearLoading.value = true
+    try {
+      await posStore.fetchOrders(true)
+    } finally {
+      isYearLoading.value = false
+    }
+  }
+})
+
 const handleRefresh = async () => {
   await posStore.fetchOrders()
 }
 
-// Master Sales Data Source (Combining Live Realtime Orders + Fallback Mock Data)
+// Master Sales Data Source (Murni dari Pesanan Riil di Database)
 const allOrders = computed(() => {
   return posStore.orders || []
 })
 
-// Period Multiplier for realistic analytics projection
-const periodMultiplier = computed(() => {
-  switch (selectedPeriod.value) {
-    case 'today': return 0.12
-    case 'week': return 0.35
-    case 'year': return 12.0
-    case 'month':
-    default: return 1.0
-  }
+// Filter Pesanan Sesuai Periode yang Dipilih
+const filteredPeriodOrders = computed(() => {
+  const now = new Date()
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+  const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()).getTime()
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime()
+  const startOfYear = new Date(now.getFullYear(), 0, 1).getTime()
+
+  return allOrders.value.filter(o => {
+    const time = o.createdAt ? new Date(o.createdAt).getTime() : Date.now()
+    if (selectedPeriod.value === 'today') return time >= startOfDay
+    if (selectedPeriod.value === 'week') return time >= startOfWeek
+    if (selectedPeriod.value === 'year') return time >= startOfYear
+    return time >= startOfMonth
+  })
 })
 
 // Paid / Completed Orders for Sales Reports
 const paidOrders = computed(() => {
-  return allOrders.value.filter(o => o.status === 'completed' || o.paymentStatus === 'paid')
+  return filteredPeriodOrders.value.filter(o => o.status === 'completed' || o.paymentStatus === 'paid')
 })
 
-// Stat Card Metrics
+// Stat Card Metrics (100% Data Asli Database)
 const totalSales = computed(() => {
-  const base = paidOrders.value.reduce((sum, o) => sum + (o.totalAmount || 0), 0)
-  return Math.round(base * periodMultiplier.value)
+  return paidOrders.value.reduce((sum, o) => sum + (o.totalAmount || 0), 0)
 })
 
 const totalTransactions = computed(() => {
-  const base = paidOrders.value.length || 1
-  return Math.max(Math.round(base * periodMultiplier.value), 1)
+  return paidOrders.value.length
 })
 
 const aov = computed(() => {
@@ -173,42 +164,39 @@ const aov = computed(() => {
   return Math.round(totalSales.value / totalTransactions.value)
 })
 
-// Payment Breakdown Calculations
+// Payment Breakdown Calculations (100% Data Asli Database)
 const qrisSales = computed(() => {
-  const base = paidOrders.value
+  return paidOrders.value
     .filter(o => (o.paymentMethod || '').toLowerCase() === 'qris')
     .reduce((sum, o) => sum + (o.totalAmount || 0), 0)
-  return Math.round((base || (totalSales.value * 0.58)) * (periodMultiplier.value === 1 ? 1 : periodMultiplier.value))
 })
 
 const cashSales = computed(() => {
-  const base = paidOrders.value
+  return paidOrders.value
     .filter(o => (o.paymentMethod || '').toLowerCase() === 'cash')
     .reduce((sum, o) => sum + (o.totalAmount || 0), 0)
-  return Math.round((base || (totalSales.value * 0.28)) * (periodMultiplier.value === 1 ? 1 : periodMultiplier.value))
 })
 
 const cardSales = computed(() => {
-  const base = paidOrders.value
+  return paidOrders.value
     .filter(o => {
       const m = (o.paymentMethod || '').toLowerCase()
       return m === 'card' || m === 'debit' || m === 'credit'
     })
     .reduce((sum, o) => sum + (o.totalAmount || 0), 0)
-  return Math.round((base || (totalSales.value * 0.14)) * (periodMultiplier.value === 1 ? 1 : periodMultiplier.value))
 })
 
 const paymentDistribution = computed(() => {
-  const total = totalSales.value || 1
+  const total = totalSales.value
   return [
-    { id: 'qris', name: 'QRIS (Online)', amount: qrisSales.value, percent: ((qrisSales.value / total) * 100).toFixed(1), color: '#4880FF' },
-    { id: 'cash', name: 'Tunai / Cash Kasir', amount: cashSales.value, percent: ((cashSales.value / total) * 100).toFixed(1), color: '#00B69B' },
-    { id: 'card', name: 'Kartu Debit / EDC', amount: cardSales.value, percent: ((cardSales.value / total) * 100).toFixed(1), color: '#8280FF' },
+    { id: 'qris', name: 'QRIS (Online)', amount: qrisSales.value, percent: total > 0 ? ((qrisSales.value / total) * 100).toFixed(1) : '0.0', color: '#4880FF' },
+    { id: 'cash', name: 'Tunai / Cash Kasir', amount: cashSales.value, percent: total > 0 ? ((cashSales.value / total) * 100).toFixed(1) : '0.0', color: '#00B69B' },
+    { id: 'card', name: 'Kartu Debit / EDC', amount: cardSales.value, percent: total > 0 ? ((cardSales.value / total) * 100).toFixed(1) : '0.0', color: '#8280FF' },
   ]
 })
 
 // ==========================================
-// 1. REVENUE & SALES TREND LINE CHART DATA
+// 1. REVENUE & SALES TREND LINE CHART DATA (DATA ASLI DATABASE)
 // ==========================================
 const trendChartData = computed<ChartData<'line'>>(() => {
   let labels: string[] = []
@@ -217,21 +205,78 @@ const trendChartData = computed<ChartData<'line'>>(() => {
 
   if (selectedPeriod.value === 'today') {
     labels = ['08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00']
-    revenueData = [450000, 820000, 2450000, 1150000, 1680000, 3890000, 4250000, 1850000]
-    ordersData = [6, 12, 34, 15, 22, 48, 56, 24]
+    const revMap: Record<string, number> = {}
+    const countMap: Record<string, number> = {}
+    labels.forEach(l => { revMap[l] = 0; countMap[l] = 0 })
+
+    paidOrders.value.forEach(o => {
+      const d = o.createdAt ? new Date(o.createdAt) : new Date()
+      const h = d.getHours()
+      let slot = '08:00'
+      if (h >= 22) slot = '22:00'
+      else if (h >= 20) slot = '20:00'
+      else if (h >= 18) slot = '18:00'
+      else if (h >= 16) slot = '16:00'
+      else if (h >= 14) slot = '14:00'
+      else if (h >= 12) slot = '12:00'
+      else if (h >= 10) slot = '10:00'
+      else slot = '08:00'
+
+      revMap[slot] = (revMap[slot] || 0) + (o.totalAmount || 0)
+      countMap[slot] = (countMap[slot] || 0) + 1
+    })
+    revenueData = labels.map(l => revMap[l] || 0)
+    ordersData = labels.map(l => countMap[l] || 0)
   } else if (selectedPeriod.value === 'week') {
     labels = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu']
-    revenueData = [3200000, 2850000, 3450000, 4100000, 5890000, 8450000, 7890000]
-    ordersData = [42, 38, 45, 54, 76, 112, 104]
+    const dayMap: Record<number, string> = { 1: 'Senin', 2: 'Selasa', 3: 'Rabu', 4: 'Kamis', 5: 'Jumat', 6: 'Sabtu', 0: 'Minggu' }
+    const revMap: Record<string, number> = {}
+    const countMap: Record<string, number> = {}
+    labels.forEach(l => { revMap[l] = 0; countMap[l] = 0 })
+
+    paidOrders.value.forEach(o => {
+      const d = o.createdAt ? new Date(o.createdAt) : new Date()
+      const dayName = dayMap[d.getDay()] || 'Senin'
+      revMap[dayName] = (revMap[dayName] || 0) + (o.totalAmount || 0)
+      countMap[dayName] = (countMap[dayName] || 0) + 1
+    })
+    revenueData = labels.map(l => revMap[l] || 0)
+    ordersData = labels.map(l => countMap[l] || 0)
   } else if (selectedPeriod.value === 'year') {
     labels = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
-    revenueData = [38000000, 42000000, 48500000, 51000000, 56000000, 64000000, 72000000, 78500000, 84000000, 89000000, 94000000, 105000000]
-    ordersData = [480, 520, 610, 640, 710, 820, 910, 990, 1060, 1120, 1190, 1340]
+    const revMap: Record<number, number> = {}
+    const countMap: Record<number, number> = {}
+    labels.forEach((_, idx) => { revMap[idx] = 0; countMap[idx] = 0 })
+
+    paidOrders.value.forEach(o => {
+      const d = o.createdAt ? new Date(o.createdAt) : new Date()
+      const m = d.getMonth()
+      revMap[m] = (revMap[m] || 0) + (o.totalAmount || 0)
+      countMap[m] = (countMap[m] || 0) + 1
+    })
+    revenueData = labels.map((_, idx) => revMap[idx] || 0)
+    ordersData = labels.map((_, idx) => countMap[idx] || 0)
   } else {
-    // Default Month (4 Weeks / 30 Days sample points)
     labels = ['Tgl 1-5', 'Tgl 6-10', 'Tgl 11-15', 'Tgl 16-20', 'Tgl 21-25', 'Tgl 26-30']
-    revenueData = [4200000, 5800000, 7450000, 6890000, 8950000, 9850000]
-    ordersData = [54, 72, 94, 86, 114, 128]
+    const revMap: Record<string, number> = {}
+    const countMap: Record<string, number> = {}
+    labels.forEach(l => { revMap[l] = 0; countMap[l] = 0 })
+
+    paidOrders.value.forEach(o => {
+      const d = o.createdAt ? new Date(o.createdAt) : new Date()
+      const date = d.getDate()
+      let slot = 'Tgl 1-5'
+      if (date > 25) slot = 'Tgl 26-30'
+      else if (date > 20) slot = 'Tgl 21-25'
+      else if (date > 15) slot = 'Tgl 16-20'
+      else if (date > 10) slot = 'Tgl 11-15'
+      else if (date > 5) slot = 'Tgl 6-10'
+
+      revMap[slot] = (revMap[slot] || 0) + (o.totalAmount || 0)
+      countMap[slot] = (countMap[slot] || 0) + 1
+    })
+    revenueData = labels.map(l => revMap[l] || 0)
+    ordersData = labels.map(l => countMap[l] || 0)
   }
 
   const isRev = trendMetric.value === 'revenue'
@@ -276,6 +321,10 @@ const trendChartOptions = computed<ChartOptions<'line'>>(() => {
   return {
     responsive: true,
     maintainAspectRatio: false,
+    animation: {
+      duration: 260,
+      easing: 'easeOutQuart',
+    },
     plugins: {
       legend: { display: false },
       tooltip: {
@@ -340,6 +389,10 @@ const doughnutChartOptions = computed<ChartOptions<'doughnut'>>(() => {
   return {
     responsive: true,
     maintainAspectRatio: false,
+    animation: {
+      duration: 260,
+      easing: 'easeOutQuart',
+    },
     cutout: '72%',
     plugins: {
       legend: { display: false },
@@ -363,15 +416,15 @@ const doughnutChartOptions = computed<ChartOptions<'doughnut'>>(() => {
 // ==========================================
 // 3. TABLE TRANSACTIONS LIST
 // ==========================================
-const tableColumns = [
-  { key: 'orderNumber', label: 'No. Order', width: '20%' },
-  { key: 'createdAt', label: 'Waktu', width: '13%' },
-  { key: 'customerName', label: 'Pelanggan / Meja', width: '18%' },
-  { key: 'orderType', label: 'Tipe Order', align: 'center' as const, width: '12%' },
-  { key: 'paymentMethod', label: 'Metode Bayar', align: 'center' as const, width: '13%' },
-  { key: 'totalAmount', label: 'Total Omset', align: 'right' as const, width: '13%' },
-  { key: 'status', label: 'Status', align: 'center' as const, width: '11%' },
-]
+const tableColumns = computed(() => [
+  { key: 'orderNumber', label: locale.value === 'en' ? 'Order No.' : 'No. Order', width: '20%' },
+  { key: 'createdAt', label: locale.value === 'en' ? 'Time' : 'Waktu', width: '13%' },
+  { key: 'customerName', label: locale.value === 'en' ? 'Customer / Table' : 'Pelanggan / Meja', width: '18%' },
+  { key: 'orderType', label: locale.value === 'en' ? 'Order Type' : 'Tipe Order', align: 'center' as const, width: '12%' },
+  { key: 'paymentMethod', label: locale.value === 'en' ? 'Payment' : 'Metode Bayar', align: 'center' as const, width: '13%' },
+  { key: 'totalAmount', label: locale.value === 'en' ? 'Total Sales' : 'Total Omset', align: 'right' as const, width: '13%' },
+  { key: 'status', label: t('common.status', 'Status'), align: 'center' as const, width: '11%' },
+])
 
 const filteredTableTransactions = computed(() => {
   let list = [...paidOrders.value]
@@ -445,9 +498,11 @@ const formatTime = (dateStr?: string) => {
     <!-- Top Header: Title, Subtitle Date & Action Filters -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>
-        <h1 class="text-2xl font-bold text-[#202224] dark:text-white tracking-tight">
-          Laporan Penjualan & Omset
-        </h1>
+        <div>
+          <h1 class="text-2xl font-bold text-[#202224] dark:text-white tracking-tight">
+            {{ locale === 'en' ? 'Sales Report & Revenue' : 'Laporan Penjualan & Omset' }}
+          </h1>
+        </div>
         <p class="text-xs text-[#64748B] dark:text-[#94A3B8] font-semibold mt-0.5">
           {{ formattedCurrentDate }}
         </p>
@@ -483,6 +538,7 @@ const formatTime = (dateStr?: string) => {
           :value="formatCurrency(totalSales)"
           :trend="trendStats.sales"
           :loading="isLoading"
+          :syncing="isYearLoading"
           variant="primary"
           icon="payments"
           tooltip="Akumulasi total pendapatan kotor dari seluruh transaksi lunas pada periode terpilih."
@@ -494,6 +550,7 @@ const formatTime = (dateStr?: string) => {
           :value="`${formatNumber(totalTransactions)} Transaksi`"
           :trend="trendStats.orders"
           :loading="isLoading"
+          :syncing="isYearLoading"
           variant="secondary"
           icon="receipt_long"
           tooltip="Jumlah transaksi yang berhasil diselesaikan di kasir POS maupun pemesanan QR meja."
@@ -505,6 +562,7 @@ const formatTime = (dateStr?: string) => {
           :value="formatCurrency(aov)"
           :trend="trendStats.aov"
           :loading="isLoading"
+          :syncing="isYearLoading"
           variant="secondary"
           icon="trending_up"
           tooltip="Average Order Value (AOV): Rata-rata nilai belanja pelanggan per setiap transaksi."
@@ -516,6 +574,7 @@ const formatTime = (dateStr?: string) => {
           :value="paymentDistribution[0]?.name || 'QRIS (Online)'"
           :trend="trendStats.payment"
           :loading="isLoading"
+          :syncing="isYearLoading"
           variant="secondary"
           icon="account_balance_wallet"
           tooltip="Metode pembayaran dengan kontribusi volume dan nominal tertinggi pada periode ini."
@@ -526,6 +585,7 @@ const formatTime = (dateStr?: string) => {
       <div class="lg:col-span-6">
         <AppCard
           title="Distribusi Pembayaran"
+          :syncing="isYearLoading"
           subtitle="Proporsi omset berdasarkan metode pembayaran"
           class="h-full flex flex-col justify-between"
         >
@@ -570,6 +630,7 @@ const formatTime = (dateStr?: string) => {
     <!-- Middle Section: Revenue & Sales Trend Line Chart (Full Width) -->
     <AppCard
       title="Grafik Tren Penjualan & Omset"
+      :syncing="isYearLoading"
       subtitle="Pergerakan omset dan frekuensi transaksi sepanjang periode"
     >
       <template #action>
@@ -614,6 +675,7 @@ const formatTime = (dateStr?: string) => {
     <AppTable
       title="Daftar Transaksi Penjualan"
       subtitle="Rincian lengkap seluruh transaksi yang berhasil."
+      :syncing="isYearLoading"
       :columns="tableColumns"
       :data="filteredTableTransactions"
       :loading="isLoading"

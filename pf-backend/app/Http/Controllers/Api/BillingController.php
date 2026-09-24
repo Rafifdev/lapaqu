@@ -64,4 +64,42 @@ class BillingController extends Controller
             'invoice' => $invoice,
         ], 201);
     }
+    public function changePlan(Request $request): JsonResponse
+    {
+        $request->validate([
+            'plan_code' => ['required', 'string', 'in:basic,pro'],
+        ]);
+
+        $tenant = $request->user()->tenant;
+        if (!$tenant) {
+            return response()->json(['message' => 'Tenant context not found.'], 404);
+        }
+
+        $plan = \App\Models\Plan::where('code', $request->plan_code)->firstOrFail();
+        
+        $subscription = \App\Models\Subscription::firstOrCreate(
+            ['tenant_id' => $tenant->id],
+            [
+                'plan_id' => $plan->id,
+                'status' => 'active',
+                'active_outlets_count' => 1,
+                'current_period_start' => now(),
+                'current_period_end' => now()->addMonth(),
+                'next_billing_date' => now()->addMonth(),
+            ]
+        );
+
+        $subscription->update([
+            'plan_id' => $plan->id,
+            'status' => 'active',
+        ]);
+
+        $invoice = $this->billingService->createSubscriptionInvoice($subscription);
+
+        return response()->json([
+            'message' => 'Paket langganan berhasil diperbarui ke ' . $plan->name,
+            'subscription' => $subscription->fresh()->load('plan'),
+            'invoice' => $invoice,
+        ]);
+    }
 }

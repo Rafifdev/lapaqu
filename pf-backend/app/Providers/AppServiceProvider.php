@@ -38,18 +38,7 @@ class AppServiceProvider extends ServiceProvider
             }
         }
 
-        // Enforce Brevo SMTP settings explicitly from current .env
-        config([
-            'mail.default' => env('MAIL_MAILER', 'smtp'),
-            'mail.mailers.smtp.transport' => 'smtp',
-            'mail.mailers.smtp.host' => env('MAIL_HOST', 'smtp-relay.brevo.com'),
-            'mail.mailers.smtp.port' => (int) env('MAIL_PORT', 587),
-            'mail.mailers.smtp.username' => env('MAIL_USERNAME', 'b712a3001@smtp-brevo.com'),
-            'mail.mailers.smtp.password' => env('MAIL_PASSWORD'),
-            'mail.mailers.smtp.encryption' => env('MAIL_ENCRYPTION', 'tls'),
-            'mail.from.address' => env('MAIL_FROM_ADDRESS', 'tolebot1@gmail.com'),
-            'mail.from.name' => env('MAIL_FROM_NAME', 'Lapaqu Platform'),
-        ]);
+        // Standard Laravel mail configuration is handled by config/mail.php
         $checks = [
             DatabaseCheck::new()->label('Koneksi Database PostgreSQL'),
             DatabaseLatencyCheck::new()->label('Database Roundtrip Latency'),

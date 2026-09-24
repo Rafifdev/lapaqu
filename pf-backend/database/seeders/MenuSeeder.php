@@ -14,13 +14,9 @@ class MenuSeeder extends Seeder
 {
     public function run(): void
     {
-        $tenant = Tenant::first();
-        if (!$tenant) return;
+        $outlets = Outlet::all();
+        if ($outlets->isEmpty()) return;
 
-        $outlet = Outlet::where('tenant_id', $tenant->id)->first();
-        if (!$outlet) return;
-
-        // Categories
         $categories = [
             ['name' => 'Kopi Signature', 'sort_order' => 1],
             ['name' => 'Non-Kopi & Teh', 'sort_order' => 2],
@@ -29,13 +25,17 @@ class MenuSeeder extends Seeder
             ['name' => 'Dessert', 'sort_order' => 5],
         ];
 
-        $categoryModels = [];
-        foreach ($categories as $cat) {
-            $categoryModels[$cat['name']] = MenuCategory::firstOrCreate(
-                ['tenant_id' => $tenant->id, 'outlet_id' => $outlet->id, 'name' => $cat['name']],
-                ['sort_order' => $cat['sort_order'], 'is_active' => true]
-            );
-        }
+        foreach ($outlets as $outlet) {
+            $tenant = $outlet->tenant;
+            if (!$tenant) continue;
+
+            $categoryModels = [];
+            foreach ($categories as $cat) {
+                $categoryModels[$cat['name']] = MenuCategory::firstOrCreate(
+                    ['tenant_id' => $tenant->id, 'outlet_id' => $outlet->id, 'name' => $cat['name']],
+                    ['sort_order' => $cat['sort_order'], 'is_active' => true]
+                );
+            }
 
         // Menu Items Data
         $items = [
@@ -214,6 +214,7 @@ class MenuSeeder extends Seeder
                     }
                 }
             }
+        }
         }
     }
 }

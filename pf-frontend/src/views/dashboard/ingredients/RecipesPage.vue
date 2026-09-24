@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useNotyf } from '@/composables/useNotyf'
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { MoreVertical, Edit2, Trash2 } from 'lucide-vue-next'
 import { usePosStore } from '@/stores/pos'
@@ -20,15 +21,14 @@ const isLoading = ref(true)
 const isSubmitting = ref(false)
 
 // Toast / Notification State
-const notification = ref<{ type: 'success' | 'error'; message: string } | null>(null)
-let notificationTimer: ReturnType<typeof setTimeout> | null = null
+const notyf = useNotyf()
 
 const showNotification = (type: 'success' | 'error', message: string) => {
-  if (notificationTimer) clearTimeout(notificationTimer)
-  notification.value = { type, message }
-  notificationTimer = setTimeout(() => {
-    notification.value = null
-  }, 4000)
+  if (type === 'success') {
+    notyf.success(message)
+  } else {
+    notyf.error(message)
+  }
 }
 
 // Search & Filter state
@@ -73,6 +73,7 @@ const handleImageError = (e: Event) => {
     target.src = 'https://images.unsplash.com/photo-1541167760496-1628856ab772?w=500&auto=format&fit=crop&q=80'
   }
 }
+
 
 const getCategoryName = (row: MenuItem): string => {
   if (row.category?.name) return row.category.name
@@ -313,35 +314,12 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   if (debounceTimer) clearTimeout(debounceTimer)
-  if (notificationTimer) clearTimeout(notificationTimer)
   window.removeEventListener('click', closeMenu)
 })
 </script>
 
 <template>
   <div class="space-y-6">
-    <!-- Notification Banner (Toast) using AppIcon -->
-    <transition enter-active-class="transition duration-300 ease-out transform"
-      enter-from-class="-translate-y-2 opacity-0" enter-to-class="translate-y-0 opacity-100"
-      leave-active-class="transition duration-200 ease-in transform" leave-from-class="translate-y-0 opacity-100"
-      leave-to-class="-translate-y-2 opacity-0">
-      <div v-if="notification" :class="[
-        'flex items-center justify-between gap-3 px-4 py-3 rounded-xl border text-sm font-semibold shadow-sm',
-        notification.type === 'success'
-          ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
-          : 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300',
-      ]">
-        <div class="flex items-center gap-2">
-          <AppIcon :name="notification.type === 'success' ? 'check_circle' : 'error'" :size="20" />
-          <span>{{ notification.message }}</span>
-        </div>
-        <button type="button" @click="notification = null"
-          class="text-current opacity-70 hover:opacity-100 transition-opacity cursor-pointer">
-          <AppIcon name="close" :size="18" />
-        </button>
-      </div>
-    </transition>
-
     <!-- Header Page (Tanpa Tanggal/Waktu) -->
     <div class="flex items-center justify-between">
       <h1 class="text-2xl font-bold text-[#202224] dark:text-white">Resep Menu</h1>
@@ -580,7 +558,7 @@ onBeforeUnmount(() => {
           Apakah Anda yakin ingin menghapus resep untuk <span class="font-bold text-[#202224] dark:text-white">{{
             itemToDelete.name }}</span>?
         </p>
-        <p class="text-xs text-[#EF4444] bg-[#EF4444]/10 dark:bg-[#EF4444]/20 p-2.5 rounded-lg font-medium">
+        <p class="text-sm text-[#EF4444] bg-[#EF4444]/10 dark:bg-[#EF4444]/20 p-2.5 rounded-lg font-medium">
           Tindakan ini akan mengosongkan komposisi bahan baku pada menu ini. Stok bahan baku tidak akan lagi terpotong otomatis saat menu ini dipesan di kasir.
         </p>
       </div>

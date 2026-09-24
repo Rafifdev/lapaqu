@@ -72,7 +72,7 @@ defineEmits<{
     <!-- CENTER BIG TABLE BODY -->
     <div
       :class="[
-        'w-full h-14 sm:h-16 md:h-18 xl:h-20 rounded-2xl flex items-center justify-center font-black text-sm sm:text-base md:text-lg tracking-tight transition-all duration-200 shadow-2xs tabular-nums',
+        'w-full h-14 sm:h-16 md:h-18 xl:h-20 rounded-2xl flex items-center justify-center font-bold text-sm sm:text-base md:text-lg tracking-tight transition-all duration-200 shadow-2xs tabular-nums',
         status === 'filled'
           ? 'bg-[#0F172A] text-white shadow-xs'
           : status === 'reserved'
@@ -121,7 +121,7 @@ defineEmits<{
     <!-- CENTER TABLE BODY -->
     <div
       :class="[
-        'w-full h-14 sm:h-16 md:h-18 xl:h-20 rounded-2xl flex items-center justify-center font-black text-sm sm:text-base md:text-lg tracking-tight transition-all duration-200 shadow-2xs tabular-nums',
+        'w-full h-14 sm:h-16 md:h-18 xl:h-20 rounded-2xl flex items-center justify-center font-bold text-sm sm:text-base md:text-lg tracking-tight transition-all duration-200 shadow-2xs tabular-nums',
         status === 'filled'
           ? 'bg-[#0F172A] text-white shadow-xs'
           : status === 'reserved'

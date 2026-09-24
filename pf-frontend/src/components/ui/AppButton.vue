@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppIcon from '@/components/ui/AppIcon.vue'
+import AppSpinner from '@/components/ui/AppSpinner.vue'
 
 interface Props {
   variant?: 'primary' | 'secondary' | 'outline' | 'danger' | 'success' | 'ghost'
@@ -31,7 +32,7 @@ const variantClasses = {
 }
 
 const sizeClasses = {
-  sm: 'px-3 py-1 text-xs rounded-lg gap-2',
+  sm: 'px-3.5 py-2 text-xs rounded-lg gap-2',
   md: 'px-4 py-2 text-sm rounded-lg gap-2',
   lg: 'px-6 py-3 text-base rounded-lg gap-2',
 }
@@ -44,8 +45,7 @@ const sizeClasses = {
     sizeClasses[size],
     block ? 'w-full' : '',
   ]">
-    <div v-if="loading"
-      class="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" />
+    <AppSpinner v-if="loading" :size="size === 'sm' ? 14 : (size === 'lg' ? 20 : 16)" color="text-current" />
     <slot v-else-if="$slots.prefix" name="prefix" />
     <AppIcon v-else-if="icon" :name="icon" :size="size === 'sm' ? 16 : size === 'lg' ? 22 : 18" class="shrink-0" />
 

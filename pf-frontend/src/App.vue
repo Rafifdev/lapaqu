@@ -1,11 +1,19 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useTheme } from '@/composables/useTheme'
+import { useMotion } from '@/composables/useMotion'
 import { useSettingsModal } from '@/composables/useSettingsModal'
+import { useAuthStore } from '@/stores/auth'
 import SettingsModal from '@/components/settings/SettingsModal.vue'
+import AppPageTransition from '@/components/ui/AppPageTransition.vue'
+
 
 const { applyTheme } = useTheme()
+const { applyMotion } = useMotion()
 const { openSettingsModal } = useSettingsModal()
+const authStore = useAuthStore()
+const router = useRouter()
 
 const handleGlobalShortcut = (e: KeyboardEvent) => {
   // Ctrl + , or Cmd + , or Ctrl + Shift + ,
@@ -17,7 +25,16 @@ const handleGlobalShortcut = (e: KeyboardEvent) => {
 
 onMounted(() => {
   applyTheme()
+  applyMotion()
   window.addEventListener('keydown', handleGlobalShortcut)
+
+  // Inisialisasi pemantau kedaluwarsa sesi realtime (otomatis logout di jam 23.59)
+  authStore.startSessionMonitoring(() => {
+    router.push({
+      path: '/auth/login',
+      
+    })
+  })
 })
 
 onUnmounted(() => {
@@ -29,9 +46,9 @@ onUnmounted(() => {
   <div class="min-h-screen text-[#202224] dark:text-white bg-[#F5F6FA] dark:bg-[#1B2431] font-sans antialiased transition-colors duration-200">
     <!-- Root Router View with Pure Smooth SPA Transition -->
     <router-view v-slot="{ Component, route }">
-      <transition name="page-fade" mode="out-in">
+      <AppPageTransition>
         <component :is="Component" :key="route.matched[0]?.path || route.path" />
-      </transition>
+      </AppPageTransition>
     </router-view>
 
     <!-- Global Settings Modal (Claude/Desktop-style dialog) -->

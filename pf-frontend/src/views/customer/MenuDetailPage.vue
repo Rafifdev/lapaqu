@@ -28,10 +28,11 @@ const selectedMulti = ref<Record<string, string[]>>({})
 
 onMounted(async () => {
   const itemId = route.params.id as string
+  const outletId = (route.params.outletId as string) || (route.query.outlet_id as string) || ''
   isLoading.value = true
   try {
     if (posStore.menuItems.length === 0) {
-      await posStore.fetchMenuItems()
+      await posStore.fetchMenuItems(outletId)
     }
     const found = posStore.menuItems.find(i => i.id === itemId)
     if (found) {
@@ -106,8 +107,8 @@ const subtotal = computed(() => unitPrice.value * quantity.value)
 
 const addToCart = () => {
   if (!item.value) return
-  const outletId = (route.params.outletId as string) || 'outlet-001'
-  const tableCode = (route.params.tableCode as string) || 'M03'
+  const outletId = (route.params.outletId as string) || cartStore.outletId || ''
+  const tableCode = (route.params.tableCode as string) || cartStore.tableCode || ''
   if (cartStore.hasPendingOrder) {
     router.push(`/order/${outletId}/${tableCode}/my-order?openQris=1`)
     return
@@ -259,7 +260,7 @@ const addToCart = () => {
         class="flex-1 shadow-lg shadow-[#4880FF]/25">
         Tambah ({{ formatCurrency(subtotal) }})
       </AppButton>
-      <AppButton v-else @click="addToCart" variant="warning" size="lg" block icon="schedule"
+      <AppButton v-else @click="addToCart" variant="secondary" size="lg" block icon="schedule"
         class="flex-1 shadow-lg shadow-amber-500/25">
         Lanjutkan Pembayaran
       </AppButton>

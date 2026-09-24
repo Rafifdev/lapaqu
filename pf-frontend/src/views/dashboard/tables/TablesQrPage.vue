@@ -2,6 +2,8 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { Plus, Download, RefreshCw, QrCode, Printer, MoreVertical, Edit2, Trash2 } from 'lucide-vue-next'
 import { usePosStore } from '@/stores/pos'
+import { useAuthStore } from '@/stores/auth'
+import { useDashboardI18n } from '@/i18n'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppModal from '@/components/ui/AppModal.vue'
@@ -11,6 +13,8 @@ import type { TableStatus } from '@/components/pos/AppTableFloorItem.vue'
 import type { TableItem } from '@/types'
 
 const posStore = usePosStore()
+const authStore = useAuthStore()
+const { t, translate, locale } = useDashboardI18n()
 
 onMounted(async () => {
   posStore.initRealtime()
@@ -76,9 +80,39 @@ const printQr = () => {
   window.print()
 }
 
+// Base URL Self-Order Configuration (Domain / Ngrok)
+const getInitialBaseUrl = () => {
+  if (typeof window !== 'undefined') {
+    const saved = localStorage.getItem('lapaqu_qr_base_url')
+    if (saved) return saved.trim().replace(/\/+$/, '')
+    const envUrl = import.meta.env.VITE_CUSTOMER_URL || import.meta.env.VITE_APP_URL
+    if (envUrl) return envUrl.trim().replace(/\/+$/, '')
+    return window.location.origin
+  }
+  return 'https://order.lapaqu.id'
+}
+
+const currentBaseUrl = ref(getInitialBaseUrl())
+
+
+const getSelfOrderUrl = (table: any) => {
+  if (!table) return ''
+  const base = (currentBaseUrl.value || window.location.origin).replace(/\/+$/, '')
+  const outletId = table.outletId || authStore.currentUser?.outletId || ''
+  const code = encodeURIComponent(table.code || table.tableCode || 'M01')
+  const token = encodeURIComponent(table.qrToken || '')
+  return `${base}/order/${outletId}/${code}${token ? `?token=${token}` : ''}`
+}
+
+const getQrUrl = (table: any) => {
+  const targetUrl = getSelfOrderUrl(table)
+  return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(targetUrl)}`
+}
+
 const downloadSvg = async (table: any) => {
+  const targetUrl = getSelfOrderUrl(table)
   try {
-    const url = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&format=svg&data=https://kopiceria.lapaqu.id/order/outlet-001/${table.code}?token=${table.qrToken}`
+    const url = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&format=svg&data=${encodeURIComponent(targetUrl)}`
     const res = await fetch(url)
     const blob = await res.blob()
     const blobUrl = URL.createObjectURL(blob)
@@ -90,7 +124,7 @@ const downloadSvg = async (table: any) => {
     document.body.removeChild(a)
     URL.revokeObjectURL(blobUrl)
   } catch (e) {
-    window.open(`https://api.qrserver.com/v1/create-qr-code/?size=300x300&format=svg&data=https://kopiceria.lapaqu.id/order/outlet-001/${table.code}?token=${table.qrToken}`, '_blank')
+    window.open(`https://api.qrserver.com/v1/create-qr-code/?size=300x300&format=svg&data=${encodeURIComponent(targetUrl)}`, '_blank')
   }
 }
 
@@ -104,24 +138,20 @@ const getTableBadgeConfig = (status?: string) => {
   const s = getTableStatus(status)
   if (s === 'filled') {
     return {
-      label: 'Filled',
+      label: t('tables.statusOccupied', 'Terisi'),
       classes: 'bg-[#0F172A] text-white dark:bg-white dark:text-[#0F172A] shadow-xs'
     }
   }
   if (s === 'reserved') {
     return {
-      label: 'Reserved',
+      label: t('tables.statusReserved', 'Reservasi'),
       classes: 'bg-[#4880FF] text-white shadow-xs shadow-[#4880FF]/25'
     }
   }
   return {
-    label: 'Available',
+    label: t('tables.statusAvailable', 'Tersedia'),
     classes: 'bg-[#E2E8F0] dark:bg-[#334155] text-[#1E293B] dark:text-white'
   }
-}
-
-const getQrUrl = (table: any) => {
-  return `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=https://kopiceria.lapaqu.id/order/outlet-001/${table.code}?token=${table.qrToken}`
 }
 
 // Modal Tambah Meja
@@ -211,12 +241,14 @@ const handleConfirmDelete = async () => {
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="text-2xl font-bold text-[#202224] dark:text-white">Meja & QR Code</h1>
+        <h1 class="text-2xl font-bold text-[#202224] dark:text-white">{{ t('tables.pageTitle', 'Meja & QR Code') }}</h1>
       </div>
 
-      <AppButton variant="primary" size="md" @click="openAddTable" icon="add" class="!rounded-lg">
-        Tambah Meja
-      </AppButton>
+      <div class="flex items-center gap-2.5">
+        <AppButton variant="primary" size="md" @click="openAddTable" icon="add" class="!rounded-lg shadow-xs">
+          {{ t('tables.addTable', 'Tambah Meja') }}
+        </AppButton>
+      </div>
     </div>
 
     <!-- Table Cards Grid using Kasir Table Style (AppTableFloorItem) -->
@@ -226,7 +258,9 @@ const handleConfirmDelete = async () => {
         <!-- Top Info: Capacity, Status Badge, & Menu Opsi (Edit / Hapus) -->
         <div class="flex items-center justify-between gap-2">
           <span class="text-xs font-semibold text-[#64748B] dark:text-[#94A3B8] truncate">
-            {{ table.capacity || 4 }} Kursi • {{ (table.capacity || 4) > 4 ? 'Meja Besar' : 'Meja Normal' }}
+            {{ table.capacity || 4 }} {{ t('tables.chairUnit', 'Kursi') }} • {{ (table.capacity || 4) > 4 ? (locale ===
+              'en'
+              ? 'Large Table' : 'Meja Besar') : (locale === 'en' ? 'Regular Table' : 'Meja Normal') }}
           </span>
 
           <div class="flex items-center gap-1.5 shrink-0">
@@ -259,13 +293,13 @@ const handleConfirmDelete = async () => {
                     class="group w-full px-3 py-2.5 rounded-lg text-left text-[#202224] dark:text-[#E2E8F0] hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-500/10 flex items-center gap-2.5 transition-all duration-150 ease-in-out cursor-pointer active:scale-[0.98]">
                     <Edit2
                       class="w-4 h-4 text-[#64748B] dark:text-[#94A3B8] group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors duration-150" />
-                    <span>Edit Meja</span>
+                    <span>{{ t('common.edit', 'Edit') }} {{ t('tables.tableNumber', 'Meja') }}</span>
                   </button>
                   <button type="button" @click="openDeleteTable(table)"
                     class="group w-full px-3 py-2.5 rounded-lg text-left text-[#202224] dark:text-[#E2E8F0] hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center gap-2.5 transition-all duration-150 ease-in-out cursor-pointer active:scale-[0.98]">
                     <Trash2
                       class="w-4 h-4 text-[#64748B] dark:text-[#94A3B8] group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors duration-150" />
-                    <span>Hapus Meja</span>
+                    <span>{{ t('common.delete', 'Hapus') }} {{ t('tables.tableNumber', 'Meja') }}</span>
                   </button>
                 </div>
               </Transition>
@@ -288,18 +322,18 @@ const handleConfirmDelete = async () => {
           <button @click="regenerate(table)"
             class="text-[#4880FF] text-xs font-bold flex items-center gap-1 hover:underline cursor-pointer shrink-0 ml-2">
             <RefreshCw class="w-3 h-3" />
-            Regenerate
+            {{ t('tables.regenerateToken', 'Perbarui') }}
           </button>
         </div>
 
-        <!-- Bottom Action Buttons: Lihat QR & Unduh SVG (Enlarged + rounded-lg) -->
+        <!-- Bottom Action Buttons: Lihat QR & Lihat SVG (Enlarged + rounded-lg) -->
         <div class="flex gap-2.5 pt-1">
           <AppButton @click="showQr(table)" variant="primary" size="md"
             class="w-full !rounded-lg !py-2.5 !text-xs sm:!text-sm font-bold shadow-xs">
             <template #prefix>
               <QrCode class="w-4 h-4 shrink-0" />
             </template>
-            Lihat QR
+            {{ t('tables.viewQr', 'Lihat QR') }}
           </AppButton>
           <AppButton @click="downloadSvg(table)" variant="outline" size="md"
             class="w-fit !rounded-lg !py-2.5 !text-xs sm:!text-sm font-bold shadow-xs">
@@ -311,62 +345,96 @@ const handleConfirmDelete = async () => {
       </div>
     </div>
 
-    <!-- QR Preview Modal -->
-    <AppModal v-model="isQrModalOpen" :title="`QR Code ${selectedTable?.code || ''}`" maxWidth="sm">
-      <div v-if="selectedTable" class="text-center space-y-4 py-2">
-        <div
-          class="w-56 h-56 bg-white p-4 rounded-2xl border border-[#E8E8E8] dark:border-[#313D4F] mx-auto flex items-center justify-center shadow-lg">
-          <img :src="getQrUrl(selectedTable)" alt="QR Preview" class="w-full h-full object-contain" />
+    <!-- QR Preview Modal (Boarding Pass Ticket Card Style) -->
+    <AppModal v-model="isQrModalOpen" maxWidth="sm" :footerBorder="false" contentClass="!pb-0">
+      <div v-if="selectedTable" class="text-center space-y-3.5 pt-1 pb-0">
+        <!-- Big QR Code (Direct on clean white area) -->
+        <div class="flex items-center justify-center">
+          <div
+            class="w-56 h-56 sm:w-60 sm:h-60 bg-white p-3 rounded-2xl flex items-center justify-center border border-[#F1F5F9] dark:border-[#313D4F] shadow-xs">
+            <img :src="getQrUrl(selectedTable)" alt="QR Code" class="w-full h-full object-contain" />
+          </div>
         </div>
+
+        <!-- Name / Title & Subtitle -->
         <div>
-          <div class="flex items-center justify-center gap-2.5">
-            <h4 class="text-base font-bold text-[#1E293B] dark:text-white">{{ selectedTable.code }}</h4>
+          <h3 class="text-xl font-bold text-[#1E293B] dark:text-white tracking-tight">
+            {{ selectedTable.code }}
+          </h3>
+          <p class="text-xs font-medium text-[#64748B] dark:text-[#94A3B8] mt-1">
+            {{ locale === 'en' ? 'Scan to open Customer Self-Order' : 'Scan untuk membuka Customer Self-Order' }}
+          </p>
+        </div>
+
+        <!-- 3-Column Ticket Pill Container -->
+        <div
+          class="bg-[#F8FAFC] dark:bg-[#1E293B] border-0 rounded-lg py-3 px-2 grid grid-cols-3 divide-x divide-[#E2E8F0] dark:divide-[#334155] items-center text-center shadow-xs">
+          <!-- Col 1: Flight no. -> No. Meja -->
+          <div class="px-2">
+            <span class="block text-[11px] font-medium text-[#64748B] dark:text-[#94A3B8] mb-0.5">
+              {{ t('tables.tableNumber', 'No. Meja') }}
+            </span>
+            <span class="block text-sm font-bold text-[#1E293B] dark:text-white tracking-tight truncate">
+              {{ selectedTable.code }}
+            </span>
+          </div>
+
+          <!-- Col 2: Status (Menggunakan badge status bawaan) -->
+          <div class="px-2 flex flex-col items-center justify-center">
+            <span class="block text-[11px] font-medium text-[#64748B] dark:text-[#94A3B8] mb-0.5">
+              {{ t('common.status', 'Status') }}
+            </span>
             <span :class="[
-              'px-2.5 py-0.5 rounded-full text-xs font-bold whitespace-nowrap',
+              'inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-bold whitespace-nowrap',
               getTableBadgeConfig(selectedTable.status).classes
             ]">
               {{ getTableBadgeConfig(selectedTable.status).label }}
             </span>
           </div>
-          <p class="text-xs text-[#606060] dark:text-[#E6E6E6]/70 mt-1">
-            Scan untuk membuka Customer Self-Order Meja {{ selectedTable.code }}
-          </p>
-          <p class="text-[11px] font-mono text-[#4880FF] mt-1 font-bold">
-            Token: {{ selectedTable.qrToken }}
-          </p>
+
+          <!-- Col 3: Kapasitas Kursi -->
+          <div class="px-2">
+            <span class="block text-[11px] font-medium text-[#64748B] dark:text-[#94A3B8] mb-0.5">
+              {{ t('tables.capacity', 'Kapasitas') }}
+            </span>
+            <span class="block text-sm font-bold text-[#1E293B] dark:text-white tracking-tight truncate">
+              {{ selectedTable.capacity || 4 }} {{ t('tables.chairUnit', 'Kursi') }}
+            </span>
+          </div>
         </div>
       </div>
       <template #footer>
         <div class="flex items-center justify-between w-full gap-2">
           <AppButton @click="isQrModalOpen = false" variant="outline" size="md" class="flex-1">
-            Tutup
+            {{ t('common.close', 'Tutup') }}
           </AppButton>
           <AppButton variant="primary" size="md" class="flex-1" @click="printQr">
             <template #prefix>
               <Printer class="w-4 h-4" />
             </template>
-            Cetak QR
+            {{ t('tables.printQr', 'Cetak QR') }}
           </AppButton>
         </div>
       </template>
     </AppModal>
 
     <!-- Modal Tambah Meja -->
-    <AppModal v-model="isAddModalOpen" title="Tambah Meja Baru" maxWidth="sm">
+    <AppModal v-model="isAddModalOpen" :title="t('tables.modalAddTitle', 'Tambah Meja Baru')" maxWidth="sm">
       <div class="space-y-4 py-2">
         <div>
-          <label class="block text-xs font-bold text-[#1E293B] dark:text-white mb-1.5">Nomor Meja</label>
+          <label class="block text-xs font-bold text-[#1E293B] dark:text-white mb-1.5">{{ t('tables.formNumber', 'Nomor Meja') }}</label>
           <AppInput v-model="newTable.tableNumber" placeholder="05 atau T-05" />
         </div>
         <div>
-          <label class="block text-xs font-bold text-[#1E293B] dark:text-white mb-1.5">Kapasitas Kursi</label>
+          <label class="block text-xs font-bold text-[#1E293B] dark:text-white mb-1.5">{{ t('tables.formCapacity', 'Kapasitas Kursi') }}</label>
           <AppInput v-model="newTable.capacity" type="number" min="1" max="20" placeholder="4" />
         </div>
       </div>
       <template #footer>
         <div class="flex items-center justify-end gap-2 w-full">
-          <AppButton variant="outline" size="md" @click="isAddModalOpen = false">Batal</AppButton>
-          <AppButton variant="primary" size="md" @click="handleSaveTable">Simpan Meja</AppButton>
+          <AppButton variant="outline" size="md" @click="isAddModalOpen = false">{{ t('common.cancel', 'Batal') }}
+          </AppButton>
+          <AppButton variant="primary" size="md" @click="handleSaveTable">{{ t('common.save', 'Simpan') }}</AppButton>
         </div>
       </template>
     </AppModal>
@@ -374,37 +442,43 @@ const handleConfirmDelete = async () => {
     <AppModal v-model="isEditModalOpen" :title="`Edit ${tableToEdit?.code || 'Meja'}`" maxWidth="sm">
       <div class="space-y-4 py-2">
         <div>
-          <label class="block text-xs font-bold text-[#1E293B] dark:text-white mb-1.5">Nomor Meja</label>
+          <label class="block text-xs font-bold text-[#1E293B] dark:text-white mb-1.5">{{ t('tables.formNumber', 'Nomor Meja') }}</label>
           <AppInput v-model="editTableForm.tableNumber" placeholder="05 atau T-05" />
         </div>
         <div>
-          <label class="block text-xs font-bold text-[#1E293B] dark:text-white mb-1.5">Kapasitas Kursi</label>
+          <label class="block text-xs font-bold text-[#1E293B] dark:text-white mb-1.5">{{ t('tables.formCapacity', 'Kapasitas Kursi') }}</label>
           <AppInput v-model="editTableForm.capacity" type="number" min="1" max="20" placeholder="4" />
         </div>
       </div>
       <template #footer>
         <div class="flex items-center justify-end gap-2 w-full">
-          <AppButton variant="outline" size="md" @click="isEditModalOpen = false">Batal</AppButton>
-          <AppButton variant="primary" size="md" @click="handleSaveEditTable">Simpan Perubahan</AppButton>
+          <AppButton variant="outline" size="md" @click="isEditModalOpen = false">{{ t('common.cancel', 'Batal') }}
+          </AppButton>
+          <AppButton variant="primary" size="md" @click="handleSaveEditTable">{{ t('common.save', 'Simpan Perubahan') }}
+          </AppButton>
         </div>
       </template>
     </AppModal>
 
     <!-- Modal Hapus Meja -->
-    <AppModal v-model="isDeleteModalOpen" title="Hapus Meja" maxWidth="sm">
+    <AppModal v-model="isDeleteModalOpen" :title="t('common.delete', 'Hapus') + ' ' + t('tables.tableNumber', 'Meja')"
+      maxWidth="sm">
       <div v-if="tableToDelete" class="space-y-3 py-1 text-sm">
         <p class="text-[#64748B] dark:text-[#94A3B8]">
-          Apakah Anda yakin ingin menghapus <span class="font-bold text-[#1E293B] dark:text-white">{{ tableToDelete.code
-          }}</span>?
+          {{ locale === 'en' ? 'Are you sure you want to delete' : 'Apakah Anda yakin ingin menghapus' }} <span
+            class="font-bold text-[#1E293B] dark:text-white">{{ tableToDelete.code
+            }}</span>?
         </p>
-        <p class="text-xs text-[#EF4444] bg-[#EF4444]/10 dark:bg-[#EF4444]/20 p-2.5 rounded-lg font-medium">
-          Tindakan ini tidak dapat dibatalkan. QR Code untuk meja ini tidak akan dapat digunakan lagi oleh pelanggan.
+        <p class="text-sm text-[#EF4444] bg-[#EF4444]/10 dark:bg-[#EF4444]/20 p-2.5 rounded-lg font-medium">
+          {{ locale === 'en' ? 'This action cannot be undone. QR Code for this table will no longer be usable by customers.' : 'Tindakan ini tidak dapat dibatalkan. QR Code untuk meja ini tidak akan dapat digunakan lagi oleh pelanggan.' }}
         </p>
       </div>
       <template #footer>
         <div class="flex items-center justify-end gap-2 w-full">
-          <AppButton variant="outline" size="md" @click="isDeleteModalOpen = false">Batal</AppButton>
-          <AppButton variant="danger" size="md" @click="handleConfirmDelete">Ya, Hapus</AppButton>
+          <AppButton variant="outline" size="md" @click="isDeleteModalOpen = false">{{ t('common.cancel', 'Batal') }}
+          </AppButton>
+          <AppButton variant="danger" size="md" @click="handleConfirmDelete">{{ t('common.delete', 'Ya, Hapus') }}
+          </AppButton>
         </div>
       </template>
     </AppModal>

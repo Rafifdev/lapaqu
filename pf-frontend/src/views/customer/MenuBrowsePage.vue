@@ -6,6 +6,7 @@ import AppBadge from '@/components/ui/AppBadge.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 import { usePosStore } from '@/stores/pos'
 import { useCartStore } from '@/stores/cart'
+import { useCustomerI18n } from '@/i18n'
 import { useFormat } from '@/composables/useFormat'
 import type { MenuItem, SelectedOption } from '@/types'
 
@@ -13,7 +14,12 @@ const route = useRoute()
 const router = useRouter()
 const posStore = usePosStore()
 const cartStore = useCartStore()
+const { t, translate } = useCustomerI18n()
 const { formatCurrency } = useFormat()
+
+const outletId = computed(() => (route.params.outletId as string) || (route.query.outlet_id as string) || '')
+const tableCode = computed(() => (route.params.tableCode as string) || cartStore.tableCode || 'M01')
+const myOrderUrl = computed(() => `/order/${outletId.value || ''}/${tableCode.value}/my-order`)
 
 const selectedCategoryId = ref<string>('all')
 const categoryBarRef = ref<HTMLElement | null>(null)
@@ -66,28 +72,39 @@ const selectCategory = (catId: string, event?: MouseEvent) => {
 }
 
 const searchQuery = computed({ get: () => cartStore.searchQuery, set: (v: string) => { cartStore.searchQuery = v } })
-const isLoading = ref(true)
+// Cache-first: Langsung render instan jika data sudah ada di cache store
+const isLoading = ref(posStore.menuItems.length === 0)
 const isScrolled = ref(false)
 
 const handleScroll = () => {
   isScrolled.value = window.scrollY > 15
 }
 
-onMounted(async () => {
-  window.addEventListener('scroll', handleScroll, { passive: true })
-  handleScroll()
-  isLoading.value = true
+const loadMenuData = async (forceLoading = false) => {
+  if (forceLoading || posStore.menuItems.length === 0) {
+    isLoading.value = true
+  }
   try {
-    if (posStore.categories.length === 0) {
-      await posStore.fetchCategories()
-    }
-    if (posStore.menuItems.length === 0) {
-      await posStore.fetchMenuItems()
-    }
+    await Promise.all([
+      posStore.fetchCategories(outletId.value),
+      posStore.fetchMenuItems(outletId.value),
+    ])
   } catch (err) {
     console.error('Failed to load menu items:', err)
   } finally {
     isLoading.value = false
+  }
+}
+
+onMounted(async () => {
+  window.addEventListener('scroll', handleScroll, { passive: true })
+  handleScroll()
+  await loadMenuData()
+})
+
+watch(() => route.params.outletId, async (newId) => {
+  if (newId) {
+    await loadMenuData()
   }
 })
 
@@ -118,7 +135,7 @@ const highlightMatch = (text: string, query: string) => {
 }
 
 const selectedCategoryName = computed(() => {
-  if (selectedCategoryId.value === 'all') return 'Semua Menu'
+  if (selectedCategoryId.value === 'all') return t('menu.allCategories')
   const cat = posStore.categories.find(c => c.id === selectedCategoryId.value)
   return cat ? cat.name : 'Menu'
 })
@@ -434,6 +451,18 @@ const handleQuickAdd = (event: Event, item: MenuItem) => {
     cartStore.addItem(item, 1)
   }
 }
+
+const handleQuickRemove = (event: Event, item: MenuItem) => {
+  event.stopPropagation()
+  if (cartStore.hasPendingOrder) return
+
+  // Cari item terakhir di keranjang yang cocok dengan item.id
+  const matchingItems = cartStore.items.filter(i => i.menuItem.id === item.id)
+  if (matchingItems.length > 0) {
+    const targetItem = matchingItems[matchingItems.length - 1]
+    cartStore.updateQuantity(targetItem.id, -1)
+  }
+}
 </script>
 
 <template>
@@ -472,12 +501,7 @@ const handleQuickAdd = (event: Event, item: MenuItem) => {
               <AppBadge variant="danger" solid size="sm">Habis</AppBadge>
             </div>
 
-            <!-- Quantity Badge (Seperti di Order Manual) -->
-            <div v-if="getItemQuantity(item.id) > 0" class="absolute top-1.5 right-1.5 z-10 pointer-events-none">
-              <span class="w-5.5 h-5.5 rounded-full flex items-center justify-center bg-[#4880FF] text-white text-[11px] font-bold shadow-xs tabular-nums">
-                {{ getItemQuantity(item.id) }}
-              </span>
-            </div>
+
           </div>
 
           <!-- Food Details Column (Center & Right) -->
@@ -498,16 +522,48 @@ const handleQuickAdd = (event: Event, item: MenuItem) => {
                 {{ formatCurrency(item.price) }}
               </p>
 
-              <!-- Quick Add (+) Button -->
-              <button
-                v-if="item.isAvailable"
-                type="button"
-                @click="handleQuickAdd($event, item)"
-                class="w-7 h-7 rounded-md bg-[#4880FF] hover:bg-[#3971F0] text-white flex items-center justify-center shadow-xs active:scale-90 transition-all cursor-pointer shrink-0"
-                title="Tambah ke Keranjang"
-              >
-                <AppIcon name="add" :size="18" />
-              </button>
+              <!-- Quick Add & Stepper Button -->
+              <div v-if="item.isAvailable" class="flex items-center shrink-0">
+                <!-- State 2: Terhubung Sesuai Gambar Sketsa jika qty > 0 (Pixel-perfect h-7.5) -->
+                <div
+                  v-if="getItemQuantity(item.id) > 0"
+                  @click.stop
+                  class="flex items-center"
+                >
+                  <button
+                    type="button"
+                    @click.stop="handleQuickRemove($event, item)"
+                    class="w-7.5 h-7.5 rounded-lg border-2 border-[#4880FF] text-[#4880FF] bg-white dark:bg-[#273142] hover:bg-[#4880FF]/10 active:scale-90 flex items-center justify-center shadow-xs transition-all cursor-pointer shrink-0 z-10"
+                    title="Kurangi"
+                  >
+                    <AppIcon name="remove" :size="15" />
+                  </button>
+                  <div class="h-7.5 px-3.5 -mx-1.5 bg-white dark:bg-[#273142] flex items-center justify-center z-0 shadow-xs border-0 select-none">
+                    <span class="text-xs font-bold text-[#1E293B] dark:text-white tabular-nums text-center">
+                      {{ getItemQuantity(item.id) }}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    @click.stop="handleQuickAdd($event, item)"
+                    class="w-7.5 h-7.5 rounded-lg bg-[#4880FF] hover:bg-[#3971F0] text-white flex items-center justify-center shadow-xs active:scale-90 transition-all cursor-pointer shrink-0 z-10"
+                    title="Tambah"
+                  >
+                    <AppIcon name="add" :size="18" />
+                  </button>
+                </div>
+
+                <!-- State 1: Button Plus Tunggal jika qty === 0 -->
+                <button
+                  v-else
+                  type="button"
+                  @click.stop="handleQuickAdd($event, item)"
+                  class="w-7.5 h-7.5 rounded-lg bg-[#4880FF] hover:bg-[#3971F0] text-white flex items-center justify-center shadow-xs active:scale-90 transition-all cursor-pointer shrink-0"
+                  title="Tambah ke Keranjang"
+                >
+                  <AppIcon name="add" :size="18" />
+                </button>
+              </div>
               <span v-else class="text-[11px] font-semibold text-rose-500 bg-rose-50 dark:bg-rose-950/30 px-2 py-0.5 rounded">
                 Habis
               </span>
@@ -564,7 +620,7 @@ const handleQuickAdd = (event: Event, item: MenuItem) => {
                 : 'text-[#64748B] dark:text-[#94A3B8] hover:text-[#4880FF] dark:hover:text-[#4880FF]'
             ]"
           >
-            <span>Semua Menu</span>
+            <span>{{ t('menu.allCategories') }}</span>
             <div
               v-if="selectedCategoryId === 'all'"
               class="absolute bottom-0 left-0 right-0 h-0.5 bg-[#4880FF] rounded-full"
@@ -598,9 +654,9 @@ const handleQuickAdd = (event: Event, item: MenuItem) => {
         <AppEmptyState
           v-if="filteredItems.length === 0"
           svgType="menu"
-          title="Tidak Ada Menu"
-          description="Belum ada menu tersedia untuk kategori ini."
-          actionLabel="Lihat Semua Menu"
+          :title="t('menu.emptyTitle', 'Menu Belum Tersedia')"
+          :description="t('menu.emptyDesc', 'Belum ada menu yang tersedia untuk kategori ini.')"
+          :actionLabel="t('menu.allCategories', 'Semua Menu')"
           actionIcon="restaurant_menu"
           @action="selectCategory('all')"
         />
@@ -629,23 +685,53 @@ const handleQuickAdd = (event: Event, item: MenuItem) => {
                 <AppBadge variant="danger" solid size="sm">Habis</AppBadge>
               </div>
 
-              <!-- Quantity Badge (Seperti di Order Manual) -->
-              <div v-if="getItemQuantity(item.id) > 0" class="absolute top-2.5 right-2.5 z-10 pointer-events-none">
-                <span class="w-6.5 h-6.5 rounded-full flex items-center justify-center bg-[#4880FF] text-white text-xs font-bold shadow-md shadow-[#4880FF]/30 tabular-nums">
-                  {{ getItemQuantity(item.id) }}
-                </span>
-              </div>
-
-              <!-- Quick Add (+) Button in Bottom-Right Corner of Image -->
+              <!-- Quick Add & Stepper in Bottom-Right Corner of Image -->
+              <!-- State 1: Hanya Button (+) jika belum dipilih (qty === 0) -->
               <button
-                v-if="item.isAvailable"
+                v-if="item.isAvailable && getItemQuantity(item.id) === 0"
                 type="button"
                 @click.stop="handleQuickAdd($event, item)"
-                class="absolute bottom-2.5 right-2.5 w-8.5 h-8.5 sm:w-9 sm:h-9 rounded-xl bg-[#4880FF] hover:bg-[#3971F0] text-white flex items-center justify-center shadow-md active:scale-90 transition-all cursor-pointer z-10"
+                class="absolute bottom-2.5 right-2.5 w-9 h-9 rounded-xl bg-[#4880FF] hover:bg-[#3971F0] text-white flex items-center justify-center shadow-md active:scale-90 transition-all cursor-pointer z-10"
                 title="Tambah ke Keranjang"
               >
                 <AppIcon name="add" :size="22" />
               </button>
+
+              <!-- State 2: Terhubung Sesuai Gambar Sketsa (Tinggi Pixel-Perfect h-9, Jarak Lega px-5) -->
+              <div
+                v-else-if="item.isAvailable && getItemQuantity(item.id) > 0"
+                @click.stop
+                class="absolute bottom-2.5 right-2.5 z-10 flex items-center"
+              >
+                <!-- Button Minus: Kotak Rounded-xl Utuh (w-9 h-9) Outlined Border Biru -->
+                <button
+                  type="button"
+                  @click.stop="handleQuickRemove($event, item)"
+                  class="w-9 h-9 rounded-xl border-2 border-[#4880FF] text-[#4880FF] bg-white dark:bg-[#273142] hover:bg-[#4880FF]/10 active:scale-90 flex items-center justify-center shadow-md transition-all cursor-pointer shrink-0 z-10"
+                  title="Kurangi"
+                >
+                  <AppIcon name="remove" :size="20" />
+                </button>
+
+                <!-- Strip Tengah Penghubung: Background Putih FIT Tinggi Sama Rata (h-9) & Jarak Lega (px-5) -->
+                <div
+                  class="h-9 px-5 -mx-2.5 bg-white dark:bg-[#273142] flex items-center justify-center z-0 shadow-xs border-0 select-none"
+                >
+                  <span class="text-sm font-bold text-[#1E293B] dark:text-white tabular-nums tracking-wider text-center">
+                    {{ getItemQuantity(item.id) }}
+                  </span>
+                </div>
+
+                <!-- Button Plus: Kotak Rounded-xl Utuh Solid Biru (w-9 h-9, Posisi & Ukuran Tetap Sama) -->
+                <button
+                  type="button"
+                  @click.stop="handleQuickAdd($event, item)"
+                  class="w-9 h-9 rounded-xl bg-[#4880FF] hover:bg-[#3971F0] text-white flex items-center justify-center shadow-md active:scale-90 transition-all cursor-pointer shrink-0 z-10"
+                  title="Tambah"
+                >
+                  <AppIcon name="add" :size="22" />
+                </button>
+              </div>
             </div>
 
             <!-- Food Details: Title & Price Below Image (Image ke Title pt-3) -->

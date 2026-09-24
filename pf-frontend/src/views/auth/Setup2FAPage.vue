@@ -25,8 +25,8 @@ const handleActivate = () => {
       <div class="w-12 h-12 rounded-2xl bg-[#E2EAF8] dark:bg-[#4880FF]/25 text-[#2563EB] dark:text-[#93C5FD] flex items-center justify-center mx-auto mb-3">
         <AppIcon name="security" :size="28" />
       </div>
-      <h2 class="text-xl font-extrabold text-[#1E293B] dark:text-white">Aktifkan 2FA</h2>
-      <p class="text-xs text-[#475569] dark:text-[#94A3B8] mt-1 font-medium">Scan QR code di bawah menggunakan Google Authenticator atau Authy</p>
+      <h2 class="text-2xl font-extrabold text-[#1E293B] dark:text-white">Aktifkan 2FA</h2>
+      <p class="text-sm text-[#475569] dark:text-[#94A3B8] mt-1.5 font-medium">Scan QR code di bawah menggunakan Google Authenticator atau Authy</p>
     </div>
 
     <!-- Mock QR Code -->
@@ -38,9 +38,9 @@ const handleActivate = () => {
       />
     </div>
 
-    <div class="bg-[#F8FAFC] dark:bg-[#1E293B] p-3 rounded-xl text-center mb-5 border border-[#CBD5E1] dark:border-[#334155]">
-      <p class="text-[11px] text-[#475569] dark:text-[#94A3B8] font-bold">Kode Manual Secret:</p>
-      <p class="text-sm font-mono font-extrabold text-[#4880FF] tracking-wider mt-0.5 select-all">JBSW Y3DP EHPK 3PXP</p>
+    <div class="bg-[#F8FAFC] dark:bg-[#1E293B] p-3.5 rounded-xl text-center mb-5 border border-[#CBD5E1] dark:border-[#334155]">
+      <p class="text-xs text-[#475569] dark:text-[#94A3B8] font-bold">Kode Manual Secret:</p>
+      <p class="text-base font-mono font-extrabold text-[#4880FF] tracking-wider mt-0.5 select-all">JBSW Y3DP EHPK 3PXP</p>
     </div>
 
     <form @submit.prevent="handleActivate" class="space-y-4">
